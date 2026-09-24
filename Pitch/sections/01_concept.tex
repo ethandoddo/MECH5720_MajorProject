@@ -1,0 +1,59 @@
+\vspace{0.5em}
+\noindent\textbf{1. Team and roles.} \\
+\textbf{Ethan - } Research aperture design methods and validation, complete aperture design, experimental data capture, write report, presentation, integration and further development of code. \\
+\textbf{Emma - } Research aperture design methods and validation, complete hardware design, experimental data capture, write report, presentation, integration and code tidying. \\
+\textbf{Jayden - } Research aperture design methods and validation, complete hardware design, experimental data capture, write report, presentation, integration and code tidying. \\
+\textbf{Has - } Research aperture design methods and validation, complete aperture design, experimental data capture, final README documentation GitHub, write report, presentation.
+
+\vspace{0.5em}
+\noindent\textbf{2. Goal.}
+This project modifies a DSLR camera to integrate an electronically programmable aperture, enabling instantaneous spatial and spectral modulation in front of and behind the lens. The system displays variable aperture patterns to achieve custom bokeh, depth estimation, post-capture refocus, and dynamic aperture mode. This single optical element introduces computational imaging capabilities to standard cameras without specialised optics. Precedent comes from existing programmable iris builds [\rl{G1}, \rl{G2}] and programmable aperture research [\rl{G3}, \rl{G4}, \rl{G5}].
+
+\vspace{0.5em}
+\noindent\textbf{3. Approach.}
+
+\vspace{0.5em}
+\noindent\textbf{Principle.} An out-of-focus point blurs into a scaled copy of the aperture. Swapping the fixed diaphragm for a transmissive LCD turns the aperture into a software-set pattern that can change every frame.
+
+\vspace{0.5em}
+\noindent\textbf{Hardware.} Stripping the backlight and diffuser from a TFT LCD leaves the transmissive cell. The panel first mounts in front of the lens for validation captures, then moves inside the 25\,mm tube of a Canon EF extension tube set. A Raspberry Pi sends patterns over SPI and triggers the shutter. The colour filter costs light. Losses above 3 stops call for longer exposures on static scenes or a switch to laser-cut masks.
+
+\vspace{0.5em}
+\noindent\textbf{Apertures and processing} (Figure~\ref{fig:apertures}, Appendix~A).
+\begin{itemize}
+    \item Custom bokeh: \ap{Cross slit}, \ap{Annulus}, \ap{Gaussian apodised}, \ap{Heart} and \ap{Star}. No processing needed.
+    \item Depth estimation: \ap{Half-pupil frames 1 and 2}, \ap{Two-pinhole}, \ap{Levin}, \ap{Nayar} and \ap{Colour-filtered}. Block matching on the half-pupil disparity gives depth. Levin and Nayar read depth from blur size in a single frame.
+    \item Post-capture refocus: \ap{Sub-aperture frames 1 to 9}, \ap{S-matrix multiplexed}, \ap{Cosine heterodyne} and \ap{MURA}. Shifting and summing the nine sub-aperture frames refocuses at any depth. MURA's broadband kernel deblurs each depth layer.
+    \item Dynamic aperture mode: \ap{Coded pair A}, \ap{Coded pair B} and \ap{Flutter shutter}. The Zhou, Lin and Nayar pair recovers depth and an all-in-focus image by deconvolution. Flutter shutter codes the exposure in time to remove motion blur.
+\end{itemize}
+
+\vspace{0.5em}
+\noindent\textbf{Controls and calibration.} Every capture set includes an \ap{Open disc} frame at the same exposure and focus. PSFs measured at 700, 1000 and 1300\,mm under the Lab~3 protocol supply the Wiener deconvolution kernel.
+
+\vspace{0.5em}
+\noindent\textbf{4. Success criteria.}
+
+\vspace{0.5em}
+\noindent\textbf{Gate 1: panel works as an aperture.} The camera photographs a defocused point source through the panel. Pass when the blur spot matches the displayed pattern with normalised cross-correlation (NCC) $\geq 0.8$.
+
+\vspace{0.5em}
+\noindent\textbf{Gate 2: measured PSFs.} \ap{Open disc}, \ap{Levin} and \ap{MURA} PSFs cover all three calibration distances. Pass when PSF width grows with defocus, the disc MTF shows its expected zeros and coded MTFs stay above zero in the target band.
+
+\vspace{0.5em}
+\noindent Each goal passes against its open disc control when:
+\begin{itemize}
+    \item Custom bokeh: every highlight reaches NCC $\geq 0.8$ against its mask.
+    \item Depth estimation: targets at 700, 1000 and 1300\,mm give RMS depth error under 10\,\% of true distance.
+    \item Post-capture refocus: the Laplacian variance of each target peaks at its true depth. Deblurring the MURA frame with each measured PSF gives the lowest RMSE against the in-focus control at the true-depth PSF.
+    \item Dynamic aperture mode: the deblurred coded frame beats the disc stopped down to equal depth of field on SNR. Flutter shutter narrows edge width on a moving target after deblurring.
+\end{itemize}
+
+\vspace{0.5em}
+\noindent\textbf{5. Fallback.}
+The full in-front dataset comes before any panel modification. If tube integration damages the panel, that dataset still delivers all four goals.
+
+\vspace{0.5em}
+\noindent\textbf{6. Hardware.}
+\textbf{LCD:} Adafruit 1.8-inch colour TFT, $128 \times 160$, US\$19.95 [\rl{H1}]. Static laser-cut masks cover the case where TFT transmission falls short.
+\textbf{Extension tube:} three-piece Canon EF and EF-S macro set from eBay Australia [\rl{H4}], with Fruugo Australia as a second source [\rl{H3}].
+\newpage

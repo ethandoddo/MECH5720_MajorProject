@@ -1,97 +1,67 @@
-\vspace{0.5em}
-\noindent\textbf{1. Team and roles.} \textit{Who is responsible for what.}\\
-\textbf{Ethan - } Research aperture design methods and validation (SECTION APPROACH/SUCCESS CRITERIA), complete aperture design, experimental data capture, write report, presentation \\
-\textbf{Emma - } Experimental data capture, write report, presentation \\
-\textbf{Jayden - } Experimental data capture, write report, presentation \\
-\textbf{Has - } Experimental data capture, final ReadMe creation GitHub, write report, presentation \\
+% main.tex
+\documentclass[10pt,a4paper]{article}
 
-Individual tasks to be started this week in order to complete the proposal - and possibly a rough work split for now?
-\begin{itemize}
-    \item Research into application(s) of DSLR coded aperture to present and how to achieve (SECTION GOAL / APPROACH), complete experimental design e.g. evidence to be collected, processing to be completed 
-    \item Hardware design of LCD in Canon extender tube (deconstruction of LCD, mounting internally, cable management, connection to pi) (SECTION APPROACH / FALLBACK / HARDWARE), document experimental design
-    \item Plan for coding/control of deconstructed LCD (SECTION APPROACH/SUCCESS CRITERIA), complete code for coded aperture and linking to camera and laptop 
-\end{itemize}
+\usepackage{silence}
+\WarningFilter{siunitx}{Detected the "physics" package}
+\usepackage{preamble} % Ensure you have this package or comment it out if not needed
+\usepackage{graphicx}
+\usepackage{placeins} % Added to control figure floating
+\usepackage{float}
+\usepackage{ifthen}
+\usepackage{textcomp}
+\usepackage{pgfgantt}
+\usepackage{geometry}
+\usepackage{url}
+% Let long order-page URLs break anywhere rather than run into the margin
+\makeatletter
+\g@addto@macro\UrlBreaks{\UrlOrds}
+\g@addto@macro\UrlBreaks{%
+  \do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k\do\l\do\m%
+  \do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v\do\w\do\x\do\y\do\z%
+  \do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M%
+  \do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X\do\Y\do\Z%
+  \do\0\do\1\do\2\do\3\do\4\do\5\do\6\do\7\do\8\do\9}
+\makeatother
+\usepackage{hyperref}
+% Aperture name in the body that jumps to the pattern figure in the appendix
+\newcommand{\ap}[1]{\hyperref[fig:apertures]{#1}}
+% Reference tag in the body that jumps to that entry in the References list
+\newcommand{\rl}[1]{\hyperref[ref:#1]{#1}}
+\geometry{
+    a4paper,
+    left=12mm,
+    right=12mm,
+    top=2mm,
+    bottom=2mm,
+}
 
-Future tasks - 
-\begin{itemize}
-    \item PSF calibration and characterisation of camera (FPN) 
-    \item Integration / tidying of existing lab code to create nice base for rest of project 
-    \item More code/data processing and creation of plots and figures for report?
-\end{itemize}
-
-\vspace{0.5em}
-\noindent\textbf{2. Goal.} \textit{What will your system do that a conventional camera or display cannot and why is that interesting?}\\
-
-- Custom bokeh \\
-- Depth estimation \\
-- Post capture refocus (foreground and background from one capture) \\
-- Dynamic aperture mode \\
-
-Links - \\
-https://petapixel.com/2026/02/11/diy-digital-iris-animates-and-customizes-lens-bokeh/
-https://blog.adafruit.com/2026/02/10/turning-a-vintage-nokia-display-into-a-programmable-camera-iris/
-https://www.researchgate.net/publication/220184327_Programmable_aperture_photography_Multiplexed_light_field_acquisition
-https://link.springer.com/chapter/10.1007/978-3-642-24028-7_6
-https://cave.cs.columbia.edu/projects/categories/project?cid=Computational+Imaging&pid=Programmable+Imaging+Controllable+Apertures
-\\
-
-\vspace{0.5em}
-\vspace{0.5em}
-\noindent\textbf{3. Approach.} \textit{The principle of operation in a few sentences and the processing you plan to apply.}
-
-\vspace{0.5em}
-\noindent\textbf{Principle.} The blur of an out-of-focus point is a scaled copy of the aperture shape. We replace the fixed diaphragm with a transparent LCD, so the aperture becomes an image we choose in software and can change between frames.
-
-\vspace{0.5em}
-\noindent\textbf{Hardware.} A 2.4 inch TFT LCD is stripped of its backlight and diffuser, leaving the transmissive cell. It is mounted in a 25\,mm Canon EF extension tube, slotted so the glass crosses the optical path. A Raspberry Pi loads the pattern over SPI and triggers the shutter. We will also test the panel in a holder in front of the lens and keep whichever placement gives the cleaner PSF.
-
-\vspace{0.5em}
-\noindent\textbf{Display choice.} The TFT has 320 by 240 cells but low transmission and a colour filter. A monochrome LCD passes more light with coarser cells. We start with the TFT and swap if transmission is too low.
-
-\vspace{0.5em}
-\noindent\textbf{Apertures and processing.} One aperture set and one processing step per goal, shown in Figure~\ref{fig:apertures}.
-\begin{itemize}
-    \item \textit{Custom bokeh.} Cross slit, annulus, Gaussian apodised, heart and star. Every out-of-focus point of light takes the shape of the displayed aperture. A cross slit gives cross-shaped highlights, an annulus gives rings, a Gaussian edge gives smooth blur and a drawn heart or star gives that shape. No processing is needed.
-    \item \textit{Depth estimation.} The half-pupil pair is captured over two frames. Out-of-focus regions shift sideways between the frames by an amount proportional to their distance and block matching recovers that shift. A two-pinhole aperture doubles every out-of-focus point with a gap that grows with distance. The Levin 13 by 13 pattern is the single-frame comparison, where the blur size at each point gives its distance. Nayar is the same idea with more light. A colour-filtered aperture gives distance from coloured fringes at defocused edges and is included for comparison only.
-    \item \textit{Post-capture refocus.} A 3 by 3 sub-aperture scan over nine frames, each through one open cell, gives a coarse light field that is shifted and summed to focus at any chosen depth. The S-matrix pattern opens several cells per frame for the same result with more light. The cosine mask records a light field in one frame but needs finer greyscale than the panel can give. MURA has no spectral zeros and is used for the final deblurring step once depth is known.
-    \item \textit{Dynamic aperture mode.} The open disc is the bright-scene default. The Zhou, Lin and Nayar coded pair is captured over two frames whose spectra cover each other's zeros. A joint deconvolution of the pair gives both a depth map and an all-focus image. The flutter shutter opens and closes the whole panel in a timed sequence during one exposure so that motion blur can be removed.
-\end{itemize}
-
-\vspace{0.5em}
-\noindent\textbf{Calibration.} PSFs are measured with a point source at 700, 1000 and 1300\,mm, following Lab~3. Deconvolution uses the Lab~3 Wiener filter with the measured kernel.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.9\linewidth]{images/apertures_by_goal.png}
-    \caption{Aperture patterns to be displayed, grouped by goal. White is open, black is blocked.}
-    \label{fig:apertures}
-\end{figure}
-
-\vspace{0.5em}
-\noindent\textbf{4. Success criteria.} \textit{What you will measure to show the system works, a plot or measured quantity.}\\
-- Take apart LCD and test if custom coded aperture can be created and photographed through (transmissive)
-
-- Capture and characterise PSFs \\
+% Handle missing figures gracefully while keeping black borders on existing ones
+\let\origincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{%
+  \setlength{\fboxsep}{0pt}%
+  \setlength{\fboxrule}{0.5pt}%
+  \IfFileExists{#2}{%
+    \fbox{\origincludegraphics[#1]{#2}}%
+  }{%
+    \fbox{\begin{minipage}[c][3cm][c]{\linewidth}\centering\scriptsize\ttfamily Missing:\\\detokenize{#2}\end{minipage}}%
+  }%
+}
 
 
-\vspace{0.5em}
-\noindent\textbf{5. Fallback.} \textit{What you will deliver if the ambitious version fails.}\\
-- Aperture in front?
 
-\vspace{0.5em}
-\noindent\textbf{6. Hardware.} \textit{What you will build, what you will need from the loan list and what you propose we acquire on your behalf. Include prices and direct links to product order pages. Be realistic about lead times: anything not in hand by Week 10 puts your project at risk. Sticking to Australian stock is best.}\\
+\pagestyle{empty}
+\linespread{1}
 
-LCD - 
-https://www.adafruit.com/product/358#technical-details \$20
-https://core-electronics.com.au/small-liquid-crystal-light-valve-controllable-shutter-glass.html
+\begin{document}
 
-Check for LCD Monochrome on Auscom, Aus3D, Maker store 
+\noindent\makebox[\textwidth][s]{{\LARGE \bfseries MECH5720 Major Project Pitch:} {\Large \color{black!70} Coded Apertures an Analysis }}\\[0.3cm]
+\noindent
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} c c c c @{}}
+    490480278 & 500468995 & 530477149 & 530504892 \\
+\end{tabular*}\vspace{0.1cm}
+\hrule
+\input{sections/01_concept}
+\input{sections/02_gantt}
+\input{sections/03_appendix}
 
-Extension Tube - 
-https://www.fruugoaustralia.com/3-piece-macro-extension-tube-set-for-canon-ef-and-ef-s-lenses-compatibility/p-408611474-865707712?language=en&ac=google&utm_source=google&utm_medium=paid&gad_source=1&gad_campaignid=22803874495&gbraid=0AAAAADpXug1C8vclmEYMgZBQWZi-GFVSP&gclid=CjwKCAjwq8PVBhAKEiwA2i3SHexOkFqKAWC783Dsm9jExwVloy0dqO8RFy9QKyTCRuhKFX55UFD7ZhoCpq0QAvD_BwE
-
-https://www.ebay.com.au/itm/402972099293?itmmeta=01M33CN7D7JJ5FZQPYHX39NZ5B&hash=item5dd30242dd:g:d8YAAOSwHN9cY-tj&itmprp=enc%3AAQALAAAAwD8du%2BjVlrWqMmolE0DBMUXSgukk0Yf4LHyK5Ykh2PXkdNY4iwJcpdPgp3G2lpluUbevzUwnejcLPhgcYBvxl%2Bdx%2F40%2F6Wru%2FpTQwSA1zh27E03OVcnGfELeof1QoVhCBNl8Y3zmQOVNL3N9Prkc2LsMLTj9AoNpI0x3ceIDuzDzsmBSjRJMGbJoPCD0n23ad%2B7GiEMaePtsNezPkj5lK330ewoK7VJ4W1VQmKGlq4z6pZKgt3fHJ%2FyQhlg0rw95tA%3D%3D%7Ctkp%3ABk9SR9r21OyYaA
-
-- tripod?? video / long exposure 
-
-\newline
+\end{document}
