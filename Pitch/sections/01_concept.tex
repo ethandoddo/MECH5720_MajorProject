@@ -5,7 +5,14 @@
 
 \vspace{0.4em}
 \noindent\textbf{2. Goal.}
-To put a transmissive LCD in the optical path of a Canon DSLR so that software sets the aperture pattern for every frame. The priority goal is per-frame switching: the LCD shows a different pattern on each of two consecutive frames of a static scene, so the frames stay aligned to the pixel. Every other goal applies that switching. Depth estimation comes first and is required. The two frames use the patterns of a coded aperture pair [\rl{G6}] and a joint deconvolution recovers a depth map and an all-in-focus image. Custom bokeh needs only new patterns. Post-capture refocus needs a nine-frame sub-aperture scan [\rl{G3}]. A flutter shutter needs the pattern to switch within one exposure. Programmable iris builds [\rl{G1}, \rl{G2}] and programmable aperture research [\rl{G4}, \rl{G5}] set the precedent.
+ \noindent To put a transmissive LCD in the optical path of a Canon DSLR so that software sets the aperture pattern for every frame. The requirement is a dynamic aperture, meaning the aperture pattern changes from one frame to the next. The test is two consecutive frames of a static scene with a different pattern on each, so the frames stay aligned to the pixel.
+
+\vspace{\baselineskip}
+ \noindent Once the gates pass, four secondary goals follow, all built from the dynamic aperture. The first is depth estimation. The two frames carry the patterns of a coded aperture pair [\rl{G6}] and a joint deconvolution of the pair recovers a depth map and an all-in-focus image. The second is post-capture refocus, which extends the capture to nine frames, each opening a different sub-aperture [\rl{G3}]. The third is custom bokeh, which repeats the dynamic aperture test with aperture shapes we design ourselves. The fourth is a flutter shutter, which switches the pattern within one exposure. Gate 3 measures whether the panel switches fast enough.
+
+\vspace{\baselineskip}
+ \noindent We found a hobbyist build that fits an LCD iris to a camera lens [\rl{G1}, \rl{G2}] and published research that uses controllable apertures for coded imaging [\rl{G4}, \rl{G5}]. Together they show that each part of this plan has been done before, so the risk lies in the integration rather than the concept.
+
 
 \vspace{0.4em}
 \noindent\textbf{3. Approach.}
@@ -21,19 +28,21 @@ A defocused point images as a scaled copy of the aperture. That holds only near 
 \begin{itemize}\setlength\itemsep{0pt}
     \item \textbf{Gate 1, panel acts as an aperture:} a defocused point source matches the displayed pattern with normalised cross-correlation (NCC) $\geq 0.8$. Transmission loss stays at or below 3 stops.
     \item \textbf{Gate 2, coded pair PSFs:} PSF width grows with defocus. The two coded MTFs share no zeros in the target band, while the open-disc MTF shows its expected zeros.
-    \item \textbf{Gate 3, per-frame switching (the priority goal):} two consecutive frames of a static point source show the two coded patterns at NCC $\geq 0.8$ each, and open-disc control frames before and after register within one pixel. The measured switching time decides whether a flutter shutter is possible.
+    \item \textbf{Gate 3, dynamic aperture (the requirement):} two consecutive frames of a static point source show the two coded patterns at NCC $\geq 0.8$ each. Open-disc control frames before and after register within one pixel. The measured switching time decides whether a flutter shutter is possible.
     \item \textbf{Depth estimation, first application}, with textured targets at 700, 1000 and 1300\,mm: RMS depth error below 10\,\% of true distance. The all-in-focus image beats the open disc stopped down to the same depth of field on SSIM.
-    \item \textbf{Custom bokeh:} every out-of-focus highlight reaches NCC $\geq 0.8$ against its displayed shape.
     \item \textbf{Post-capture refocus:} each target reaches peak SSIM against its in-focus reference at its true depth.
+    \item \textbf{Custom bokeh:} every out-of-focus highlight reaches NCC $\geq 0.8$ against its displayed shape.
     \item \textbf{Flutter shutter}, only if the switching time allows a useful code in one exposure: deblurring narrows edge width on a moving target.
 \end{itemize}
 
 \noindent\textbf{5. Fallback.}
-All validation captures at the front of the lens happen before the panel goes into the extension tube. If tube integration damages the panel, those captures form the final deliverable and still address all four goals. If the measured switching time is too slow for a useful code within one exposure, the flutter shutter drops out and the deliverable is the other three goals. Depth estimation is the minimum deliverable, since it needs only two frames and the coded pair.
+All validation captures at the front of the lens happen before the panel goes into the extension tube. If tube integration damages the LCD panel, those captures form the final deliverable and still address all four goals. If the measured switching time is too slow for a useful code within one exposure, the flutter shutter drops out and the deliverable is the other three goals. Depth estimation is the minimum deliverable, since it needs only two frames and the coded pair.
+
+
 
 \vspace{0.4em}
 \noindent\textbf{6. Hardware.}\
-\textbf{Team builds:} front-of-lens panel mount, slotted 25\,mm extension tube for Stage~2, Raspberry Pi display and capture code.\
+\textbf{Team builds:} front-of-lens panel mount, slotted 25\,mm extension tube for Stage~2, laser-cut fallback masks, Raspberry Pi display and capture code.\
 \textbf{On the loan list:} Adafruit 1.8-inch colour TFT, $128 \times 160$ (\url{https://www.adafruit.com/product/358}). Stripping the backlight is permanent, so the team asks for approval to modify one of the six available.\
 \textbf{Already supplied:} Raspberry Pi and the Lab~3 point-source PSF setup. The Canon DSLR and EF lens belong to a team member.\
 \textbf{To be acquired on the team's behalf:} three-piece Canon EF and EF-S macro extension tube set, AUD\,\$47.29 (\url{https://www.ebay.com.au/itm/402972099293}), which the team returns after the project. The Stage~2 slot is permanent.
