@@ -1,59 +1,40 @@
 \vspace{0.5em}
-\noindent\textbf{1. Team and roles.} \\
-\textbf{Ethan - } Research aperture design methods and validation, complete aperture design, experimental data capture, write report, presentation, integration and further development of code. \\
-\textbf{Emma - } Research aperture design methods and validation, complete hardware design, experimental data capture, write report, presentation, integration and code tidying. \\
-\textbf{Jayden - } Research aperture design methods and validation, complete hardware design, experimental data capture, write report, presentation, integration and code tidying. \\
-\textbf{Has - } Research aperture design methods and validation, complete aperture design, experimental data capture, final README documentation GitHub, write report, presentation.
+\noindent\textbf{1. Team and roles.} \
+\textbf{All four:} research into aperture design methods and validation, experimental data capture, report writing and presentation. \
+\textbf{Ethan:} aperture design, integration and further code development. \textbf{Emma and Jayden:} hardware design, integration and code tidying. \textbf{Has:} aperture design and the final GitHub README.
 
-\vspace{0.5em}
+\vspace{0.4em}
 \noindent\textbf{2. Goal.}
-This project modifies a DSLR camera to integrate an electronically programmable aperture, enabling instantaneous spatial and spectral modulation in front of and behind the lens. The system displays variable aperture patterns to achieve custom bokeh, depth estimation, post-capture refocus, and dynamic aperture mode. This single optical element introduces computational imaging capabilities to standard cameras without specialised optics. Precedent comes from existing programmable iris builds [\rl{G1}, \rl{G2}] and programmable aperture research [\rl{G3}, \rl{G4}, \rl{G5}].
+To put a transmissive LCD in the optical path of a Canon DSLR so that software sets the aperture pattern for every frame. The priority goal is per-frame switching: the LCD shows a different pattern on each of two consecutive frames of a static scene, so the frames stay aligned to the pixel. Every other goal applies that switching. Depth estimation comes first and is required. The two frames use the patterns of a coded aperture pair [\rl{G6}] and a joint deconvolution recovers a depth map and an all-in-focus image. Custom bokeh needs only new patterns. Post-capture refocus needs a nine-frame sub-aperture scan [\rl{G3}]. A flutter shutter needs the pattern to switch within one exposure. Programmable iris builds [\rl{G1}, \rl{G2}] and programmable aperture research [\rl{G4}, \rl{G5}] set the precedent.
 
-\vspace{0.5em}
+\vspace{0.4em}
 \noindent\textbf{3. Approach.}
-
-\vspace{0.5em}
-\noindent\textbf{Principle.} An out-of-focus point blurs into a scaled copy of the aperture. Swapping the fixed diaphragm for a transmissive LCD turns the aperture into a software-set pattern that can change every frame.
-
-\vspace{0.5em}
-\noindent\textbf{Hardware.} Stripping the backlight and diffuser from a TFT LCD leaves the transmissive cell. The panel first mounts in front of the lens for validation captures, then moves inside the 25\,mm tube of a Canon EF extension tube set. A Raspberry Pi sends patterns over SPI and triggers the shutter. The colour filter costs light. Losses above 3 stops call for longer exposures on static scenes or a switch to laser-cut masks.
-
-\vspace{0.5em}
-\noindent\textbf{Apertures and processing} (Figure~\ref{fig:apertures}, Appendix~A).
-\begin{itemize}
-    \item Custom bokeh: \ap{Cross slit}, \ap{Annulus}, \ap{Gaussian apodised}, \ap{Heart} and \ap{Star}. No processing needed.
-    \item Depth estimation: \ap{Half-pupil frames 1 and 2}, \ap{Two-pinhole}, \ap{Levin}, \ap{Nayar} and \ap{Colour-filtered}. Block matching on the half-pupil disparity gives depth. Levin and Nayar read depth from blur size in a single frame.
-    \item Post-capture refocus: \ap{Sub-aperture frames 1 to 9}, \ap{S-matrix multiplexed}, \ap{Cosine heterodyne} and \ap{MURA}. Shifting and summing the nine sub-aperture frames refocuses at any depth. MURA's broadband kernel deblurs each depth layer.
-    \item Dynamic aperture mode: \ap{Coded pair A}, \ap{Coded pair B} and \ap{Flutter shutter}. The Zhou, Lin and Nayar pair recovers depth and an all-in-focus image by deconvolution. Flutter shutter codes the exposure in time to remove motion blur.
+A defocused point images as a scaled copy of the aperture. That holds only near the lens pupil, so mask position matters.
+\begin{itemize}\setlength\itemsep{0pt}
+    \item \textbf{Stage 1:} the panel sits against the front of the lens, near the entrance pupil. Edge points see a clipped pattern, so all tests use the image centre.
+    \item \textbf{Stage 2}, only if Stage~1 passes all three gates: the panel moves into a slot cut in the 25\,mm extension tube, behind the exit pupil, where it starts to act as a light-field mask. The same patterns at both positions measure the difference.
+    \item \textbf{Panel and control:} stripping the backlight and diffuser leaves the transmissive cell. A Raspberry Pi drives it over SPI and fires the shutter.
+    \item \textbf{Processing:} a point source at 700, 1000 and 1300\,mm gives PSFs for the open disc and both coded patterns (Lab~3 protocol). Each image patch takes the depth whose PSF pair best explains both frames after Wiener deconvolution. Every capture set includes an open-disc control frame.
 \end{itemize}
 
-\vspace{0.5em}
-\noindent\textbf{Controls and calibration.} Every capture set includes an \ap{Open disc} frame at the same exposure and focus. PSFs measured at 700, 1000 and 1300\,mm under the Lab~3 protocol supply the Wiener deconvolution kernel.
-
-\vspace{0.5em}
 \noindent\textbf{4. Success criteria.}
-
-\vspace{0.5em}
-\noindent\textbf{Gate 1: panel works as an aperture.} The camera photographs a defocused point source through the panel. Pass when the blur spot matches the displayed pattern with normalised cross-correlation (NCC) $\geq 0.8$.
-
-\vspace{0.5em}
-\noindent\textbf{Gate 2: measured PSFs.} \ap{Open disc}, \ap{Levin} and \ap{MURA} PSFs cover all three calibration distances. Pass when PSF width grows with defocus, the disc MTF shows its expected zeros and coded MTFs stay above zero in the target band.
-
-\vspace{0.5em}
-\noindent Each goal passes against its open disc control when:
-\begin{itemize}
-    \item Custom bokeh: every highlight reaches NCC $\geq 0.8$ against its mask.
-    \item Depth estimation: targets at 700, 1000 and 1300\,mm give RMS depth error under 10\,\% of true distance.
-    \item Post-capture refocus: the Laplacian variance of each target peaks at its true depth. Deblurring the MURA frame with each measured PSF gives the lowest RMSE against the in-focus control at the true-depth PSF.
-    \item Dynamic aperture mode: the deblurred coded frame beats the disc stopped down to equal depth of field on SNR. Flutter shutter narrows edge width on a moving target after deblurring.
+\begin{itemize}\setlength\itemsep{0pt}
+    \item \textbf{Gate 1, panel acts as an aperture:} a defocused point source matches the displayed pattern with normalised cross-correlation (NCC) $\geq 0.8$. Transmission loss stays at or below 3 stops.
+    \item \textbf{Gate 2, coded pair PSFs:} PSF width grows with defocus. The two coded MTFs share no zeros in the target band, while the open-disc MTF shows its expected zeros.
+    \item \textbf{Gate 3, per-frame switching (the priority goal):} two consecutive frames of a static point source show the two coded patterns at NCC $\geq 0.8$ each, and open-disc control frames before and after register within one pixel. The measured switching time decides whether a flutter shutter is possible.
+    \item \textbf{Depth estimation, first application}, with textured targets at 700, 1000 and 1300\,mm: RMS depth error below 10\,\% of true distance. The all-in-focus image beats the open disc stopped down to the same depth of field on SSIM.
+    \item \textbf{Custom bokeh:} every out-of-focus highlight reaches NCC $\geq 0.8$ against its displayed shape.
+    \item \textbf{Post-capture refocus:} each target reaches peak SSIM against its in-focus reference at its true depth.
+    \item \textbf{Flutter shutter}, only if the switching time allows a useful code in one exposure: deblurring narrows edge width on a moving target.
 \end{itemize}
 
-\vspace{0.5em}
 \noindent\textbf{5. Fallback.}
-The full in-front dataset comes before any panel modification. If tube integration damages the panel, that dataset still delivers all four goals.
+All validation captures at the front of the lens happen before the panel goes into the extension tube. If tube integration damages the panel, those captures form the final deliverable and still address all four goals. If the measured switching time is too slow for a useful code within one exposure, the flutter shutter drops out and the deliverable is the other three goals. Depth estimation is the minimum deliverable, since it needs only two frames and the coded pair.
 
-\vspace{0.5em}
-\noindent\textbf{6. Hardware.}
-\textbf{LCD:} Adafruit 1.8-inch colour TFT, $128 \times 160$, US\$19.95 [\rl{H1}]. Static laser-cut masks cover the case where TFT transmission falls short.
-\textbf{Extension tube:} three-piece Canon EF and EF-S macro set from eBay Australia [\rl{H4}], with Fruugo Australia as a second source [\rl{H3}].
+\vspace{0.4em}
+\noindent\textbf{6. Hardware.}\
+\textbf{Team builds:} front-of-lens panel mount, slotted 25\,mm extension tube for Stage~2, Raspberry Pi display and capture code.\
+\textbf{On the loan list:} Adafruit 1.8-inch colour TFT, $128 \times 160$ (\url{https://www.adafruit.com/product/358}). Stripping the backlight is permanent, so the team asks for approval to modify one of the six available.\
+\textbf{Already supplied:} Raspberry Pi and the Lab~3 point-source PSF setup. The Canon DSLR and EF lens belong to a team member.\
+\textbf{To be acquired on the team's behalf:} three-piece Canon EF and EF-S macro extension tube set, AUD\,\$47.29 (\url{https://www.ebay.com.au/itm/402972099293}), which the team returns after the project. The Stage~2 slot is permanent.
 \newpage

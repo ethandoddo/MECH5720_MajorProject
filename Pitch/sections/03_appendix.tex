@@ -1,53 +1,25 @@
-\FloatBarrier
 \vspace{0.5em}
-% Heading sits inside the float so it cannot be left behind on the previous page
-\begin{figure}[H]
-    \noindent\textbf{Appendix A. Aperture patterns.}\par
-    \vspace{0.3em}
-    \centering
-    \includegraphics[width=0.9\linewidth]{images/apertures_by_goal.png}
-    \caption{Aperture patterns to be displayed, grouped by goal. White is open, black is blocked.}
-    \label{fig:apertures}
-\end{figure}
-
-\FloatBarrier
-
-\vspace{0.5em}
-\noindent\textbf{References.} Grouped to match the section of the pitch each link supports.
+\noindent\textbf{References.} Each group matches the pitch section it supports.
 \begingroup\sloppy
 
 \vspace{0.3em}
-\noindent Section2, Goal. Existing programmable iris builds.
+\noindent Section 2, Goal. Existing programmable iris builds.
 \begin{itemize}
     \item[{[G1]}]\phantomsection\label{ref:G1} PetaPixel, ``DIY digital iris animates and customizes lens bokeh'', 11 February 2026. Build report on an LCD iris fitted to a camera lens. \\
     \url{https://petapixel.com/2026/02/11/diy-digital-iris-animates-and-customizes-lens-bokeh/}
-    \item[{[G2]}]\phantomsection\label{ref:G2} Adafruit Blog, ``Turning a vintage Nokia display into a programmable camera iris'', 10 February 2026. The same build from the hardware side, including how the panel was stripped. \\
+    \item[{[G2]}]\phantomsection\label{ref:G2} Adafruit Blog, ``Turning a vintage Nokia display into a programmable camera iris'', 10 February 2026. The same build from the hardware side, including how the builder stripped the panel. \\
     \url{https://blog.adafruit.com/2026/02/10/turning-a-vintage-nokia-display-into-a-programmable-camera-iris/}
 \end{itemize}
 
-\noindent Section2, Goal. Programmable aperture research.
+\noindent Section 2, Goal. Programmable aperture research.
 \begin{itemize}
     \item[{[G3]}]\phantomsection\label{ref:G3} C.-K. Liang et al., ``Programmable aperture photography: multiplexed light field acquisition'', ACM SIGGRAPH 2008. Source for the sub-aperture scan and the S-matrix multiplexing behind post-capture refocus. ResearchGate record. \\
     \url{https://www.researchgate.net/publication/220184327_Programmable_aperture_photography_Multiplexed_light_field_acquisition}
-    \item[{[G4]}]\phantomsection\label{ref:G4} O. Bimber, H. Qureshi, A. Grundh\"ofer, M. Grosse and D. Danch, ``Adaptive coded aperture photography'', in Advances in Visual Computing, Lecture Notes in Computer Science, Springer, 2011. Aperture pattern changed per frame to suit the scene, which is the basis of the dynamic aperture mode. \\
+    \item[{[G4]}]\phantomsection\label{ref:G4} O. Bimber, H. Qureshi, A. Grundh\"ofer, M. Grosse and D. Danch, ``Adaptive coded aperture photography'', in Advances in Visual Computing, Lecture Notes in Computer Science, Springer, 2011. The paper changes the aperture pattern per frame to suit the scene, which forms the basis of the dynamic aperture mode. \\
     \url{https://link.springer.com/chapter/10.1007/978-3-642-24028-7_6}
     \item[{[G5]}]\phantomsection\label{ref:G5} Columbia CAVE laboratory, project page ``Programmable Imaging: Controllable Apertures''. Overview of controllable aperture optics and the results they produce. \\
     \url{https://cave.cs.columbia.edu/projects/categories/project?cid=Computational+Imaging&pid=Programmable+Imaging+Controllable+Apertures}
+    \item[{[G6]}]\phantomsection\label{ref:G6} C. Zhou, S. Lin and S. K. Nayar, ``Coded aperture pairs for depth from defocus'', IEEE International Conference on Computer Vision (ICCV), 2009. Source of the two coded patterns and the joint deconvolution behind the priority goal.
 \end{itemize}
 
-\noindent Section6, Hardware. LCD panel order pages.
-\begin{itemize}
-    \item[{[H1]}]\phantomsection\label{ref:H1} Adafruit product 358, 1.8 inch colour TFT LCD with microSD breakout, ST7735R driver, 128 by 160 pixels, US\$19.95. Overseas stock, so lead time is the risk. \\
-    \url{https://www.adafruit.com/product/358#technical-details}
-    \item[{[H2]}]\phantomsection\label{ref:H2} Core Electronics, small liquid crystal light valve, controllable shutter glass. Australian stock. A single cell that switches clear or opaque, so it is the fallback if a pixel panel transmits too little light. \\
-    \url{https://core-electronics.com.au/small-liquid-crystal-light-valve-controllable-shutter-glass.html}
-\end{itemize}
-
-\noindent Section6, Hardware. Extension tube order pages.
-\begin{itemize}
-    \item[{[H3]}]\phantomsection\label{ref:H3} Fruugo Australia, three piece macro extension tube set for Canon EF and EF-S lenses. Second source for the same set as [H4]. \\
-    \url{https://www.fruugoaustralia.com/3-piece-macro-extension-tube-set-for-canon-ef-and-ef-s-lenses-compatibility/p-408611474-865707712}
-    \item[{[H4]}]\phantomsection\label{ref:H4} eBay Australia listing 402972099293, three piece macro extension tube set for Canon EF and EF-S. The chosen set. The panel sits in a slot cut into the 25\,mm tube. \\
-    \url{https://www.ebay.com.au/itm/402972099293}
-\end{itemize}
 \endgroup

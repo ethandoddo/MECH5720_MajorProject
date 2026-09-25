@@ -1,0 +1,8 @@
+# On the Pi:
+#   sudo apt install -y gphoto2 python3-pil.imagetk
+#   pip install -r requirements-pi.txt --break-system-packages
+flask
+pillow
+numpy
+rawpy
+adafruit-circuitpython-rgb-display

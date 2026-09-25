@@ -1,0 +1,9 @@
+requests
+numpy
+scipy
+pillow
+rawpy
+opencv-python
+glfw
+PyOpenGL
+imgui-bundle

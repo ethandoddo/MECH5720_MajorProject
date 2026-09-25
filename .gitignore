@@ -16,3 +16,8 @@
 *.bcf
 *.run.xml
 *.pdf
+
+# Python
+__pycache__/
+code/out/
+imgui.ini
