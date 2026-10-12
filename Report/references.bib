@@ -1,0 +1,356 @@
+% References for the MECH5720 report. The paper entries were checked against Crossref, DOI records or
+% the authors' own pages in October 2026. Web pages, datasheets and manuals sit at the end. The brief
+% asks for papers in the literature review, so cite the web entries in the method alone.
+%
+% IEEE format with the stock IEEEtran.bst (the ICCP template):
+%  - Journal and conference names use the IEEE abbreviations.
+%  - Conference entries carry the venue city in address and no publisher, so they print as
+%    "in Proc. ..., City, Country, Mon. year, pp. x-y".
+%  - IEEEtran.bst ignores the doi field, so each note repeats the DOI as "doi: ...". The doi field stays
+%    for other tools.
+%  - IEEEtran.bst lowercases the first letter of a note. Wrap that first word in braces to keep its case.
+%  - IEEEtran.bst turns every hyphen in pages into an en dash. Write a hyphen inside a page number as {\char45}.
+%  - Web sources take the link in url, which prints as "[Online]. Available:". The access date goes at the end of
+%    howpublished, since IEEE puts a full stop before "Accessed:" and IEEEtran.bst puts a comma before a note.
+%  - The control entry below stops IEEEtran.bst replacing a repeated author with a dash. main.tex loads it
+%    with stctlcite.
+
+@IEEEtranBSTCTL{IEEEexample:BSTcontrol,
+  CTLdash_repeated_names = "no"
+}
+
+% ---- coded apertures ------------------------------------------------------------------------------
+
+@inproceedings{zhou2009pairs,
+  author    = {Changyin Zhou and Stephen Lin and Shree K. Nayar},
+  title     = {Coded Aperture Pairs for Depth from Defocus},
+  booktitle = {Proc. IEEE 12th Int. Conf. Comput. Vis. (ICCV)},
+  address   = {Kyoto, Japan},
+  pages     = {325--332},
+  month     = sep,
+  year      = {2009},
+  doi       = {10.1109/ICCV.2009.5459268},
+  note      = {{doi}: \url{10.1109/ICCV.2009.5459268}}
+}
+
+@article{zhou2011pairsijcv,
+  author  = {Changyin Zhou and Stephen Lin and Shree K. Nayar},
+  title   = {Coded Aperture Pairs for Depth from Defocus and Defocus Deblurring},
+  journal = {Int. J. Comput. Vis.},
+  volume  = {93},
+  number  = {1},
+  pages   = {53--72},
+  month   = may,
+  year    = {2011},
+  doi     = {10.1007/s11263-010-0409-8},
+  note    = {{doi}: \url{10.1007/s11263-010-0409-8}}
+}
+
+% Proceedings of ACM SIGGRAPH 2007.
+@article{levin2007coded,
+  author  = {Anat Levin and Rob Fergus and Fr{\'e}do Durand and William T. Freeman},
+  title   = {Image and Depth from a Conventional Camera with a Coded Aperture},
+  journal = {ACM Trans. Graph.},
+  volume  = {26},
+  number  = {3},
+  month   = jul,
+  year    = {2007},
+  doi     = {10.1145/1276377.1276464},
+  note    = {{Art. no.} 70, doi: \url{10.1145/1276377.1276464}}
+}
+
+% Proceedings of ACM SIGGRAPH 2007.
+@article{veeraraghavan2007dappled,
+  author  = {Ashok Veeraraghavan and Ramesh Raskar and Amit Agrawal and Ankit Mohan and Jack Tumblin},
+  title   = {Dappled Photography: Mask Enhanced Cameras for Heterodyned Light Fields and Coded Aperture Refocusing},
+  journal = {ACM Trans. Graph.},
+  volume  = {26},
+  number  = {3},
+  month   = jul,
+  year    = {2007},
+  doi     = {10.1145/1276377.1276463},
+  note    = {{Art. no.} 69, doi: \url{10.1145/1276377.1276463}}
+}
+
+@inproceedings{zhou2009good,
+  author    = {Changyin Zhou and Shree K. Nayar},
+  title     = {What are Good Apertures for Defocus Deblurring?},
+  booktitle = {Proc. IEEE Int. Conf. Comput. Photogr. (ICCP)},
+  address   = {San Francisco, CA, USA},
+  pages     = {1--8},
+  month     = apr,
+  year      = {2009},
+  doi       = {10.1109/ICCPHOT.2009.5559018},
+  note      = {{doi}: \url{10.1109/ICCPHOT.2009.5559018}}
+}
+
+@article{pentland1987dfd,
+  author  = {Alex Paul Pentland},
+  title   = {A New Sense for Depth of Field},
+  journal = {IEEE Trans. Pattern Anal. Mach. Intell.},
+  volume  = {PAMI-9},
+  number  = {4},
+  pages   = {523--531},
+  month   = jul,
+  year    = {1987},
+  doi     = {10.1109/TPAMI.1987.4767940},
+  note    = {{doi}: \url{10.1109/TPAMI.1987.4767940}}
+}
+
+% ---- programmable apertures -------------------------------------------------------------------------
+
+% Proceedings of ACM SIGGRAPH 2008.
+@article{liang2008programmable,
+  author  = {Chia-Kai Liang and Tai-Hsu Lin and Bing-Yi Wong and Chi Liu and Homer H. Chen},
+  title   = {Programmable Aperture Photography: Multiplexed Light Field Acquisition},
+  journal = {ACM Trans. Graph.},
+  volume  = {27},
+  number  = {3},
+  month   = aug,
+  year    = {2008},
+  doi     = {10.1145/1360612.1360654},
+  note    = {{Art. no.} 55, doi: \url{10.1145/1360612.1360654}}
+}
+
+% Published in Part VI of the ECCV 2010 proceedings, edited by K. Daniilidis, P. Maragos and N. Paragios.
+@inproceedings{nagahara2010lcos,
+  author    = {Hajime Nagahara and Changyin Zhou and Takuya Watanabe and Hiroshi Ishiguro and Shree K. Nayar},
+  title     = {Programmable Aperture Camera Using {LCoS}},
+  booktitle = {Proc. 11th Eur. Conf. Comput. Vis. (ECCV)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {6316},
+  address   = {Heraklion, Greece},
+  pages     = {337--350},
+  month     = sep,
+  year      = {2010},
+  doi       = {10.1007/978-3-642-15567-3_25},
+  note      = {{doi}: \url{10.1007/978-3-642-15567-3_25}}
+}
+
+@inproceedings{zomet2006lensless,
+  author    = {Assaf Zomet and Shree K. Nayar},
+  title     = {Lensless Imaging with a Controllable Aperture},
+  booktitle = {Proc. IEEE Comput. Soc. Conf. Comput. Vis. Pattern Recognit. (CVPR)},
+  volume    = {1},
+  address   = {New York, NY, USA},
+  pages     = {339--346},
+  month     = jun,
+  year      = {2006},
+  doi       = {10.1109/CVPR.2006.175},
+  note      = {{doi}: \url{10.1109/CVPR.2006.175}}
+}
+
+% Published in Part I of the ISVC 2011 proceedings (Advances in Visual Computing), edited by G. Bebis et al.
+@inproceedings{bimber2011adaptive,
+  author    = {Oliver Bimber and Haroon Qureshi and Anselm Grundh{\"o}fer and Max Grosse and Daniel Danch},
+  title     = {Adaptive Coded Aperture Photography},
+  booktitle = {Proc. 7th Int. Symp. Vis. Comput. (ISVC)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {6938},
+  address   = {Las Vegas, NV, USA},
+  pages     = {54--65},
+  month     = sep,
+  year      = {2011},
+  doi       = {10.1007/978-3-642-24028-7_6},
+  note      = {{doi}: \url{10.1007/978-3-642-24028-7_6}}
+}
+
+% IS&T International Symposium on Electronic Imaging 2021, Imaging Sensors and Systems, paper ISS-120.
+@article{dietz2021lcaperture,
+  author  = {Henry Dietz},
+  title   = {Programmable Liquid Crystal Apertures and Filters for Photographic Lenses},
+  journal = {{IS\&T} Electron. Imag.},
+  volume  = {33},
+  number  = {7},
+  pages   = {120{\char45}1--120{\char45}7},
+  year    = {2021},
+  doi     = {10.2352/ISSN.2470-1173.2021.7.ISS-120},
+  note    = {{doi}: \url{10.2352/ISSN.2470-1173.2021.7.ISS-120}}
+}
+
+% ---- light fields and refocus -----------------------------------------------------------------------
+
+@inproceedings{levoy1996lightfield,
+  author    = {Marc Levoy and Pat Hanrahan},
+  title     = {Light Field Rendering},
+  booktitle = {Proc. 23rd Annu. Conf. Comput. Graph. Interact. Techn. (SIGGRAPH)},
+  address   = {New Orleans, LA, USA},
+  pages     = {31--42},
+  month     = aug,
+  year      = {1996},
+  doi       = {10.1145/237170.237199},
+  note      = {{doi}: \url{10.1145/237170.237199}}
+}
+
+@techreport{ng2005lightfield,
+  author      = {Ren Ng and Marc Levoy and Mathieu Br{\'e}dif and Gene Duval and Mark Horowitz and Pat Hanrahan},
+  title       = {Light Field Photography with a Hand-Held Plenoptic Camera},
+  institution = {Stanford Univ.},
+  address     = {Stanford, CA, USA},
+  type        = {Tech. Rep.},
+  number      = {CSTR 2005-02},
+  month       = apr,
+  year        = {2005},
+  url         = {https://graphics.stanford.edu/papers/lfcamera/}
+}
+
+% ---- coded exposure ---------------------------------------------------------------------------------
+
+% Proceedings of ACM SIGGRAPH 2006.
+@article{raskar2006coded,
+  author  = {Ramesh Raskar and Amit Agrawal and Jack Tumblin},
+  title   = {Coded Exposure Photography: Motion Deblurring Using Fluttered Shutter},
+  journal = {ACM Trans. Graph.},
+  volume  = {25},
+  number  = {3},
+  pages   = {795--804},
+  month   = jul,
+  year    = {2006},
+  doi     = {10.1145/1141911.1141957},
+  note    = {{doi}: \url{10.1145/1141911.1141957}}
+}
+
+@inproceedings{agrawal2009codes,
+  author    = {Amit Agrawal and Yi Xu},
+  title     = {Coded Exposure Deblurring: Optimized Codes for {PSF} Estimation and Invertibility},
+  booktitle = {Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)},
+  address   = {Miami, FL, USA},
+  pages     = {2066--2073},
+  month     = jun,
+  year      = {2009},
+  doi       = {10.1109/CVPR.2009.5206685},
+  note      = {{doi}: \url{10.1109/CVPR.2009.5206685}}
+}
+
+@article{cossairt2013when,
+  author  = {Oliver Cossairt and Mohit Gupta and Shree K. Nayar},
+  title   = {When Does Computational Imaging Improve Performance?},
+  journal = {IEEE Trans. Image Process.},
+  volume  = {22},
+  number  = {2},
+  pages   = {447--458},
+  month   = feb,
+  year    = {2013},
+  doi     = {10.1109/TIP.2012.2216538},
+  note    = {{doi}: \url{10.1109/TIP.2012.2216538}}
+}
+
+@article{mitra2014framework,
+  author  = {Kaushik Mitra and Oliver S. Cossairt and Ashok Veeraraghavan},
+  title   = {A Framework for Analysis of Computational Imaging Systems: Role of Signal Prior, Sensor Noise and Multiplexing},
+  journal = {IEEE Trans. Pattern Anal. Mach. Intell.},
+  volume  = {36},
+  number  = {10},
+  pages   = {1909--1921},
+  month   = oct,
+  year    = {2014},
+  doi     = {10.1109/TPAMI.2014.2313118},
+  note    = {{doi}: \url{10.1109/TPAMI.2014.2313118}}
+}
+
+@article{schechner2007multiplexing,
+  author  = {Yoav Y. Schechner and Shree K. Nayar and Peter N. Belhumeur},
+  title   = {Multiplexing for Optimal Lighting},
+  journal = {IEEE Trans. Pattern Anal. Mach. Intell.},
+  volume  = {29},
+  number  = {8},
+  pages   = {1339--1354},
+  month   = aug,
+  year    = {2007},
+  doi     = {10.1109/TPAMI.2007.1151},
+  note    = {{doi}: \url{10.1109/TPAMI.2007.1151}}
+}
+
+% ---- image metrics and registration -----------------------------------------------------------------
+
+@article{wang2004ssim,
+  author  = {Zhou Wang and Alan C. Bovik and Hamid R. Sheikh and Eero P. Simoncelli},
+  title   = {Image Quality Assessment: From Error Visibility to Structural Similarity},
+  journal = {IEEE Trans. Image Process.},
+  volume  = {13},
+  number  = {4},
+  pages   = {600--612},
+  month   = apr,
+  year    = {2004},
+  doi     = {10.1109/TIP.2003.819861},
+  note    = {{doi}: \url{10.1109/TIP.2003.819861}}
+}
+
+% Organised by the Canadian Image Processing and Pattern Recognition Society. An expanded version
+% circulated as "Fast Normalized Cross-Correlation".
+@inproceedings{lewis1995ncc,
+  author    = {J. P. Lewis},
+  title     = {Fast Template Matching},
+  booktitle = {Proc. Vis. Interface},
+  address   = {Quebec City, QC, Canada},
+  pages     = {120--123},
+  month     = may,
+  year      = {1995},
+  url       = {https://scribblethink.org/Work/nvisionInterface/vi95_lewis.pdf}
+}
+
+@inproceedings{kuglin1975phase,
+  author    = {C. D. Kuglin and D. C. Hines},
+  title     = {The Phase Correlation Image Alignment Method},
+  booktitle = {Proc. IEEE Int. Conf. Cybern. Soc.},
+  address   = {San Francisco, CA, USA},
+  pages     = {163--165},
+  month     = sep,
+  year      = {1975}
+}
+
+% ---- hardware, software and web sources (method only) -----------------------------------------------
+
+@misc{adafruit358,
+  author       = {{Adafruit Industries}},
+  title        = {1.8-inch Color {TFT} {LCD} Display with {MicroSD} Card Breakout, {ST7735R}, Product 358},
+  howpublished = {Product page. Accessed: Oct.~1, 2026},
+  url          = {https://www.adafruit.com/product/358}
+}
+
+% Panel datasheet linked from the Adafruit 358 product page.
+@misc{jdt1800,
+  author       = {{Jiandakangjing}},
+  title        = {{JD-T1800} 1.8-inch {TFT} {LCD} Module Specification},
+  howpublished = {Data sheet. Accessed: Oct.~1, 2026},
+  url          = {https://cdn-shop.adafruit.com/datasheets/JD-T1800.pdf}
+}
+
+@misc{st7735r,
+  author       = {{Sitronix Technology}},
+  title        = {{ST7735R} 132{RGB} $\times$ 162 Dot 262{K} Color with Frame Memory Single-Chip {TFT} Controller and Driver},
+  howpublished = {Data sheet, ver.~0.2. Accessed: Oct.~1, 2026},
+  url          = {https://cdn-shop.adafruit.com/datasheets/ST7735R_V0.2.pdf}
+}
+
+@manual{canon60d,
+  organization = {{Canon Inc.}},
+  title        = {{EOS 60D} Instruction Manual},
+  address      = {Tokyo, Japan},
+  year         = {2010},
+  url          = {http://gdlp01.c-wss.com/gds/9/0300004019/03/eos60d-im3-c-en.pdf}
+}
+
+@misc{gphoto2,
+  author       = {{The gPhoto Project}},
+  title        = {gphoto2: Command Line Digital Camera Client},
+  howpublished = {Software. Accessed: Oct.~1, 2026},
+  url          = {http://www.gphoto.org/}
+}
+
+% The lecturer links the Hackaday write-up of this project on Lecture 1A, slide 25:
+% https://hackaday.com/2026/02/16/a-computer-that-fits-inside-a-camera-lens/
+% IEEE allows one link per reference, so the video and the firmware are two entries.
+@misc{ancientjames2026iris,
+  author       = {{Ancient James}},
+  title        = {Digital Iris},
+  howpublished = {YouTube video, 2026. Accessed: Oct.~1, 2026},
+  url          = {https://www.youtube.com/watch?v=Kg_2MAgS_pE}
+}
+
+@misc{ancientjames2026firmware,
+  author       = {{Ancient James}},
+  title        = {aperture: Firmware for the Digital Iris},
+  howpublished = {GitHub repository. Accessed: Oct.~1, 2026},
+  url          = {https://github.com/AncientJames/aperture}
+}

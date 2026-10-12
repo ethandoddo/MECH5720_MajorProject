@@ -1,0 +1,52 @@
+% main.tex
+% MECH5720 major project report in the ICCP 2026 format (IEEE Computer Society journal style).
+% IEEEtran is the class the unit's iccp2026_latex_template.zip uses. Overleaf ships the same version (V1.8b).
+% Overleaf compiles main.tex as the main document.
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+\usepackage{preamble}
+
+% Uncomment before submission to hide every [Team: ...] note.
+% \shownotesfalse
+
+\title{Dynamic Aperture Control with a\\Transmissive Liquid Crystal Display}
+
+\author{490480278, 500468995, 530477149 and 530504892%
+\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem MECH5720 Computational Imaging, The University of Sydney, 2026.\protect\\
+Code and data:\protect\\\protect\url{https://github.com/ethandoddo/mech5720-2026-dynamic-aperture}}}
+
+\markboth{MECH5720 Major Project, 2026}{Dynamic Aperture Control with a Transmissive Liquid Crystal Display}
+
+\begin{document}
+% Loads the IEEEtran.bst settings in references.bib.
+\bstctlcite{IEEEexample:BSTcontrol}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\begin{IEEEkeywords}
+Computational photography, programmable aperture, coded aperture, depth from defocus, light field, coded exposure.
+\end{IEEEkeywords}
+}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+\input{sections/01_introduction}
+\input{sections/02_literature_review}
+\input{sections/03_method}
+\input{sections/04_results}
+\input{sections/05_limitations}
+\input{sections/06_conclusion}
+
+% Lecture 1A, slide 21: "AI use must be disclosed as per university policy".
+\section*{Acknowledgments}
+\tbd{State how the team used AI tools, as University policy requires.}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

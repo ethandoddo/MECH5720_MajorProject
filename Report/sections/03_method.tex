@@ -1,0 +1,83 @@
+% Method: system overview first, then the measurement model, hardware and capture, panel experiments
+% and the four applications. Every experiment has a continuous metric and a baseline (Table 1).
+% The full method with equations, build detail and team notes sits in prose_backup/03_method.tex.
+\section{Method}\label{sec:method}
+
+\begin{itemize}
+\item An Arduino draws each aperture pattern on a stripped LCD in front of the lens.
+\item A laptop sends the patterns over serial and fires the camera over USB.
+\item Table~\ref{tab:experiments} lists each experiment with its metric and baseline.
+\end{itemize}
+
+\subsection{Measurement model}\label{sec:model}
+
+\begin{itemize}
+\item A defocused point images as a scaled copy of the aperture. The blur grows with distance from the focal plane (Figure~\ref{fig:blur}).
+\item The pattern flips across focus, so an asymmetric pattern tells near from far.
+\item The panel loses light, leaks through black pixels and diffracts copies of each blur 31\,px away. A card mask has none of these faults.
+\end{itemize}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{blur_model.png}
+\caption{Predicted blur diameter }
+\label{fig:blur}
+\end{figure}
+
+\subsection{Hardware and capture}\label{sec:hardware}
+
+\begin{itemize}
+\item The panel is a 1.8-inch colour LCD with its backlight removed~\cite{adafruit358}. A 3D-printed mount holds it, or a card mask, on a Canon EF 50\,mm f/1.8 lens on a Canon EOS 60D.
+\item For each frame the laptop sends a pattern to the Arduino, waits for the liquid crystal to settle and fires the camera.
+\item An open-disc frame at each end of a sequence shows any camera movement.
+\item We laser-cut the same patterns from black card as the baseline (Figure~\ref{fig:patterns}).
+\end{itemize}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{patterns.png}
+\caption{Panel images at the $128 \times 160$ resolution the laptop sends.}
+\label{fig:patterns}
+\end{figure}
+
+\begin{table}[!t]
+\caption{Experiments, metrics and baselines. Every metric is continuous and carries a standard deviation over repeats. Card masks are laser-cut copies of the panel patterns. NCC is normalised cross-correlation, PSF point spread function, SPI serial peripheral interface, RMS root mean square, SSIM structural similarity index, SNR signal-to-noise ratio and MSE mean squared error.}
+\label{tab:experiments}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright}p{0.21\columnwidth}>{\raggedright}p{0.36\columnwidth}>{\raggedright\arraybackslash}p{0.33\columnwidth}@{}}
+\toprule
+Experiment & Metric & Baseline \\
+\midrule
+Pattern fidelity & NCC of PSF against design & Card mask of the same design \\
+Transmission & Stops lost and leakage $\varepsilon$ & Card disc, 2.6-stop floor \\
+Grid diffraction & Offset (px) and energy of the copies & Card disc, 31\,px prediction \\
+Pair spectra & Fraction of spectral zeros the pair shares & Card pair, Lab~3 pair, ideal masks \\
+Registration & Shift between bracketing open frames (px) & Card masks we swap by hand \\
+Switching time & 10 to 90\,\% rise and fall time (ms) & SPI transfer and datasheet times \\
+Depth & RMS depth error (\% of distance) & Card pair, single patterns \\
+All-in-focus & SSIM against in-focus frames & Conventional frame at f/22 \\
+Refocus & Edge width after refocus (px) & Open disc, f/5.6 frame, lens focus \\
+Bokeh & NCC against the star by field angle & Card star, open disc \\
+Flutter shutter & SNR gain (dB) from MSE against a stationary reference & Box and impulse exposures \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Panel characterisation}\label{sec:panel}
+
+\begin{itemize}
+\item We image a point source at five distances from 700 to 1300\,mm through panel and card.
+\item We measure light loss, leakage, grid copies and how well each blur matches its design.
+\item We measure camera drift between frames and the time the panel takes to switch.
+\end{itemize}
+
+\subsection{Applications}\label{sec:apps}
+
+\begin{itemize}
+\item \textbf{Depth:} two complementary coded patterns~\cite{zhou2009pairs} give depth and a sharp image. We compare against a hand-swapped card pair and each pattern on its own.
+\item \textbf{Refocus:} a $3 \times 3$ scan of the aperture lets us refocus after capture~\cite{ng2005lightfield}. We compare edge width against one frame through a smaller aperture.
+\item \textbf{Custom bokeh:} a star-shaped aperture shapes out-of-focus highlights. One fixed shape suits a card mask, so we expect the card to give the closer match.
+\item \textbf{Flutter shutter:} we switch the panel on and off within one exposure to make motion blur invertible~\cite{raskar2006coded}. We compare against an ordinary exposure of the same length in dim light.
+\end{itemize}

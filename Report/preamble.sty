@@ -1,0 +1,38 @@
+% preamble.sty for the MECH5720 report.
+% This file replaces the pitch's preamble.sty in the report project. The pitch version was written for the
+% article class. Loaded with IEEEtran, its geometry, caption, sectsty, natbib and enumitem packages break the
+% ICCP layout and the citations. Everything here works with \documentclass[10pt,journal,compsoc]{IEEEtran}.
+\ProvidesPackage{preamble}
+
+% Packages the ICCP 2026 template loads
+\RequirePackage[nocompress]{cite}
+\RequirePackage{xurl}
+\RequirePackage{amsmath,amssymb,graphicx}
+
+% Packages the report adds
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\RequirePackage[per-mode=symbol]{siunitx}
+\RequirePackage{xcolor}
+\RequirePackage[hidelinks]{hyperref}
+
+\graphicspath{{images/}}
+
+% IEEEtran prints "Abstract---" and "Index Terms---" with an em dash. Swap each dash for a colon.
+\RequirePackage{etoolbox}
+\patchcmd{\abstract}{---}{:\ }{}{\PackageWarning{preamble}{Could not patch the abstract heading}}
+\patchcmd{\IEEEkeywords}{---}{:\ }{}{\PackageWarning{preamble}{Could not patch the index terms heading}}
+
+% Numbers the team has not measured yet print in red, so none reach the final copy by accident.
+\newcommand{\tbd}[1]{\textcolor{red}{#1}}
+
+% Decisions the team still has to confirm. Put \shownotesfalse in main.tex to hide them all before submission.
+\newif\ifshownotes
+\shownotestrue
+% Robust so a note can sit in a caption. When hidden, \unskip removes the space before it.
+\DeclareRobustCommand{\teamnote}[1]{\ifshownotes\textcolor{blue}{\small [Team: #1]}\else\unskip\fi}
+
+% Missing figures print as a labelled box, so the paper compiles before every image exists.
+\newcommand{\figorbox}[2]{%
+  \IfFileExists{images/#2}{\includegraphics[width=#1]{#2}}{%
+    \fbox{\parbox[c][0.45#1][c]{0.95#1}{\centering\scriptsize\ttfamily Missing: \detokenize{#2}}}}}

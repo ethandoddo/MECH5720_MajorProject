@@ -1,0 +1,21 @@
+% Introduction: motivation, the principle of operation at a high level and what is new.
+% The first section heading sits inside \IEEEraisesectionheading, as the ICCP template asks.
+% The opening stays as one sentence of prose, since the drop cap of \IEEEPARstart needs two lines of text.
+\IEEEraisesectionheading{\section{Introduction}\label{sec:intro}}
+
+\IEEEPARstart{T}{he} aperture of a camera lens sets the shape of every out-of-focus blur in a photograph, so a chosen shape turns that blur into a measurement.
+
+\begin{itemize}
+\item Coded apertures recover depth~\cite{levin2007coded,zhou2009pairs}, aperture scans allow refocus after capture~\cite{liang2008programmable} and coded exposure removes motion blur~\cite{raskar2006coded}.
+\item Most of these methods need the aperture to change. A printed mask holds one pattern and swapping it moves the camera~\cite{zhou2011pairsijcv}.
+\item We replace the mask with a stripped liquid crystal display (LCD) that an Arduino redraws between frames while the camera stays still (Figure~\ref{fig:teaser}).
+\item Bimber et al.~\cite{bimber2011adaptive} and Dietz~\cite{dietz2021lcaperture} tried LCD apertures and reported low contrast and heavy light loss.
+\item We measure what the panel costs against card masks of the same designs on four applications: depth, refocus, custom bokeh and a flutter shutter.
+\end{itemize}
+
+\begin{figure}[!t]
+\centering
+\figorbox{\columnwidth}{rig_overview.jpg}
+\caption{The dynamic aperture \teamnote{Photo and captures to come.}}
+\label{fig:teaser}
+\end{figure}

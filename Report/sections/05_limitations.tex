@@ -1,0 +1,50 @@
+% Limitations and pitfalls. The brief: what did not work and why, especially fundamental limits.
+% The method predicts each item below. Confirm or refute each with data, quote the number and keep the
+% ones that matter. Cut the rest to the repository README under known pitfalls.
+%
+% Optics of the panel
+%  - Transmission: floor of 2.6 stops from one polariser and the colour filter, budget about 4 stops.
+%    Dietz (2021) measured 4.7 stops for a colour TFT, Nagahara et al. (2010) estimate 3.8 stops.
+%  - Diffraction from the 0.219 mm pixel grid: copies 31 px away at 550 nm, smeared from about 27 to 34 px
+%    across the green band, up to 70 to 80 % of the main peak, displaced across the colour stripes. The copies
+%    also widen every defocused PSF along that axis, which biases a width fit unless widths come from along the
+%    stripes, as the method does.
+%  - Leakage: 200:1 datasheet contrast gives eps about 0.005, equal to the noise level of Zhou et al.
+%    Near focus leakage acts at amplitude sqrt(eps), about 0.07. eps rises off axis and differs per colour.
+%  - The panel acts as a linear polariser, so polarised scene light (specular highlights, sky, LCD monitors)
+%    changes brightness with orientation.
+%
+% Geometry
+%  - Front-of-lens clipping: corner field angle about 14 degrees, footprint shift d_p tan(theta), about
+%    5 mm at d_p = 20 mm. The panel short axis leaves 0.1 mm of margin around the 27.8 mm pupil.
+%  - The footprint also shrinks by (z - d_p)/z, 1.5 to 4.5 % across 700 to 1300 mm, so code scale varies with depth.
+%  - Stage 2: 127 to 150 mm focus range with the tube, working f-number 2.7 to 3.0, panel glass in the
+%    converging beam shifts focus by t(1 - 1/n), about 0.5 to 0.85 mm, and adds spherical aberration.
+%
+% Depth
+%  - Dead zone near focus: a 13 x 13 cell spans b/13, under 1.5 px within about 50 mm of z_f.
+%  - The Levin mask and the open disc cannot tell 812 mm from 1300 mm when focused at 1000 mm.
+%  - The per-depth convolution model breaks at depth edges and occlusions.
+%  - Convolution against correlation (Lecture 5, slide 14): np.convolve, convolve2d and conv2 flip the kernel,
+%    cv2.filter2D and ndimage.correlate do not. A symmetric kernel hides the mistake. The Zhou PSFs are not
+%    symmetric, so the wrong routine swaps near for far with no error message. Test with a known asymmetric PSF.
+%
+% Refocus
+%  - Residual blur b/N: 49 px at 700 mm for a 3 x 3 scan. Off-depth points split into nine sharp copies.
+%  - Corner tiles keep 54.5 % of their area and their centroids sit at 0.85 of the nominal offset.
+%  - Spherical aberration at f/1.8 bends sub-aperture disparity away from linear in u.
+%
+% Timing
+%  - SPI: an Uno's hardware SPI runs at 8 MHz, under the 15 MHz ST7735R write limit, so a full frame takes
+%    about 50 ms to write. The sketch caps faster boards at 15 MHz.
+%  - Serial: the laptop sends each pattern as run lengths at 500 kbaud, 8 ms for the open disc and under 15 ms
+%    for every named pattern. The sketch writes each run as it arrives, so the SPI write sets the frame time.
+%  - The controller refreshes at 59.8 Hz from its own memory and the breakout has no tearing-effect line,
+%    so a refresh during a write shows part of each pattern.
+%  - Liquid crystal rise 15 ms and fall 35 ms typical, so a full switch takes 30 to 70 ms and the played code
+%    differs from the sent code.
+%  - Mains lighting flickers at 100 Hz in Australia.
+%  - RAW download over USB 2.0 sets the frame interval, so a slow scene change breaks the static-scene assumption.
+\section{Limitations and Pitfalls}\label{sec:limits}
+
+\tbd{To write.}
