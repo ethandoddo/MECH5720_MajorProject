@@ -1,13 +1,13 @@
-"""Aperture and DSLR server. Run this ON THE PI.
+"""Aperture and DSLR server. Run this on the laptop that has the Arduino and the camera on USB.
 
-The Pi drives the LCD in the optical path and fires the Canon over USB. The laptop talks
-to it over HTTP through camview_capture.py or capture_series.py, the same shape as the
-Lab 1 Pi camera server. A sequence of patterns and captures runs on the Pi in its own
-thread so no network delay sits between a pattern change and the shutter, and the
-laptop polls for progress.
+The server streams each pattern to the Arduino that drives the LCD in the optical path and
+fires the Canon through gphoto2. camview_capture.py and capture_series.py talk to it over
+HTTP, the same shape as the Lab 1 Pi camera server, so a second machine can drive the rig
+too. A sequence of patterns and captures runs in its own thread, so no client round trip
+sits between a pattern change and the shutter, and the clients poll for progress.
 
-  python server.py --display st7735 --camera gphoto      # the real thing
-  python server.py --display window --camera dummy       # 7 inch screen or laptop, no camera
+  python server.py --display arduino --camera gphoto     # the real thing
+  python server.py --display window --camera dummy       # a window instead of the panel, no camera
 
 Endpoints:
   GET  /status                 backends, current pattern, panel geometry, last capture, running job
@@ -28,7 +28,7 @@ Endpoints:
   GET  /sequence/<session>     manifest so far, with "done"
   GET  /files/<session>/<name> download a captured file
 
-Requires on the Pi: flask, pillow, numpy, rawpy, gphoto2, adafruit-circuitpython-rgb-display
+Requires: flask, pillow, numpy, rawpy, pyserial and the gphoto2 command line tool
 """
 import argparse
 import io
@@ -349,7 +349,7 @@ def files(session, name):
 
 def main():
     ap = argparse.ArgumentParser(description="LCD aperture and DSLR server")
-    ap.add_argument("--display", choices=["st7735", "window", "null"], default="st7735")
+    ap.add_argument("--display", choices=["arduino", "st7735", "window", "null"], default="arduino")
     ap.add_argument("--camera", choices=["gphoto", "dummy"], default="gphoto")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--pattern", default="open", help="pattern to show at start")

@@ -1,18 +1,22 @@
 """Display backends. Each one takes a PANEL_W x PANEL_H PIL image and puts it on a screen.
 
-  st7735  the Adafruit 358 panel over SPI, the one that sits in the optical path
-  window  a Tk window on the 7 inch touchscreen or a laptop, the panel image scaled up
-          with nearest-neighbour sampling so every panel pixel shows as a crisp block
-  null    keeps the last image in memory, for tests with no screen at all
+  arduino  the Adafruit 358 panel in the optical path, on an Arduino or an ESP32 running
+           arduino/aperture_panel. The laptop streams each image over USB serial
+  window   a Tk window on the laptop, the panel image scaled up with nearest-neighbour
+           sampling so every panel pixel shows as a crisp block
+  st7735   the same panel wired to a Raspberry Pi over SPI, the original layout
+  null     keeps the last image in memory, for tests with no screen at all
 
 show() returns the time.monotonic() at which the backend finished pushing the frame.
 The cell then still needs its own response time, which a photodiode has to measure.
+`python display.py` prints what every pattern costs on the serial link.
 """
 import os
 import queue
 import threading
 import time
 
+import numpy as np
 from PIL import Image
 
 import config as cfg
@@ -40,6 +44,7 @@ class NullDisplay(Display):
 
 
 class ST7735Display(Display):
+    """The panel on a Raspberry Pi over SPI. Needs adafruit-circuitpython-rgb-display."""
     name = "st7735"
 
     def __init__(self):
@@ -74,15 +79,15 @@ class WindowDisplay(Display):
         self._queue = queue.Queue()
         self._ready = threading.Event()
         self._error = None
-        # over SSH there is no DISPLAY, but the Pi desktop on the HDMI screen is display :0
+        # over SSH there is no DISPLAY, but the machine's own desktop is display :0
         if not os.environ.get("DISPLAY") and os.path.exists("/tmp/.X11-unix/X0"):
             os.environ["DISPLAY"] = ":0"
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         self._ready.wait(5)
         if self._error:
-            raise RuntimeError(f"no window could be opened: {self._error}. Run on the Pi desktop, "
-                               f"or over SSH with DISPLAY=:0, or use --backend st7735 for the panel")
+            raise RuntimeError(f"no window could be opened: {self._error}. Run on the desktop, "
+                               f"or over SSH with DISPLAY=:0, or use the arduino backend for the panel")
 
     def _run(self):
         import tkinter as tk
@@ -137,8 +142,114 @@ class WindowDisplay(Display):
             pass
 
 
-BACKENDS = {"st7735": ST7735Display, "window": WindowDisplay, "null": NullDisplay}
+ARDUINO_VIDS = {0x2341, 0x2A03, 0x303A, 0x1A86, 0x0403, 0x10C4}   # Arduino, Arduino.org, Espressif, CH340, FTDI, CP210x
+
+
+def encode_runs(img):
+    """The wire format of arduino/aperture_panel. For each row, bytes that alternate black
+    run, white run, black run and so on, starting with black and summing to the width. A
+    row that starts white begins with a zero. Every run fits a byte, since a row is 128 px."""
+    a = np.asarray(img.convert("L")) > 127
+    out = bytearray()
+    for row in a:
+        edges = np.flatnonzero(row[1:] != row[:-1]) + 1
+        runs = np.diff(np.concatenate(([0], edges, [row.size])))
+        if row[0]:
+            out.append(0)
+        out.extend(runs.tolist())
+    return bytes(out)
+
+
+class ArduinoDisplay(Display):
+    """The panel on an Arduino or ESP32 running arduino/aperture_panel, over USB serial. show()
+    streams the image as run lengths and returns the time the sketch's acknowledgement
+    arrived, about a millisecond after its SPI write finished. Opening the port resets
+    most boards, so the constructor waits for the sketch's banner first."""
+    name = "arduino"
+
+    def __init__(self, port=None, baud=None):
+        super().__init__()
+        import serial
+        from serial.tools import list_ports
+
+        self.port = port or cfg.ARDUINO_PORT or self._find_port(list_ports)
+        self.ser = serial.Serial(self.port, baud or cfg.ARDUINO_BAUD, timeout=cfg.ARDUINO_TIMEOUT_S)
+        size = self._banner(3.0)
+        if size is None:                 # the board did not reset on open, so ask it
+            self.ser.write(b"?")
+            size = self._banner(2.0)
+        if size is None:
+            raise RuntimeError(f"nothing answered on {self.port}; upload arduino/aperture_panel to the board")
+        self.ser.write(bytes([ord("O"), (cfg.PANEL_ROTATION // 90) % 4]))
+        size = self._banner(2.0)
+        if size != (cfg.PANEL_W, cfg.PANEL_H):
+            raise RuntimeError(f"PANEL_ROTATION {cfg.PANEL_ROTATION} makes the panel {size}, but patterns are "
+                               f"{cfg.PANEL_W} x {cfg.PANEL_H}; use 0 or 180")
+
+    @staticmethod
+    def _find_port(list_ports):
+        ports = list(list_ports.comports())
+        for p in ports:
+            if p.vid in ARDUINO_VIDS or p.device.startswith(("/dev/ttyACM", "/dev/ttyUSB")):
+                return p.device
+        found = ", ".join(p.device for p in ports) or "none"
+        raise RuntimeError(f"no Arduino found; set ARDUINO_PORT in config.py. Serial ports: {found}")
+
+    def _banner(self, seconds):
+        """(width, height) from the next 'aperture 1 W H' line, or None after `seconds`"""
+        deadline = time.monotonic() + seconds
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                return None
+            self.ser.timeout = left
+            parts = self.ser.readline().decode("ascii", errors="replace").split()
+            if len(parts) == 4 and parts[0] == "aperture":
+                try:
+                    return int(parts[2]), int(parts[3])
+                except ValueError:
+                    continue
+
+    def _ack(self):
+        self.ser.timeout = cfg.ARDUINO_TIMEOUT_S
+        reply = self.ser.read(1)
+        if reply == b"K":
+            return time.monotonic()
+        if reply == b"E":
+            raise RuntimeError("the sketch rejected the frame; check ARDUINO_BAUD against BAUD in the sketch")
+        raise RuntimeError(f"no acknowledgement from {self.port} within {cfg.ARDUINO_TIMEOUT_S} s")
+
+    def show(self, img):
+        self.ser.reset_input_buffer()
+        self.ser.write(b"R" + encode_runs(img))
+        t = self._ack()
+        self.last = img
+        return t
+
+    def fill(self, white):
+        """every panel pixel white or black in one short command, for switching time
+        measurements. This bypasses PANEL_INVERT: white means the pixels drive white."""
+        self.ser.reset_input_buffer()
+        self.ser.write(bytes([ord("F"), 1 if white else 0]))
+        t = self._ack()
+        self.last = Image.new("L", (cfg.PANEL_W, cfg.PANEL_H), 255 if white else 0)
+        return t
+
+    def close(self):
+        self.ser.close()
+
+
+BACKENDS = {"arduino": ArduinoDisplay, "st7735": ST7735Display, "window": WindowDisplay, "null": NullDisplay}
 
 
 def open_display(name, **kw):
     return BACKENDS[name](**kw)
+
+
+if __name__ == "__main__":
+    # what each pattern costs on the serial link, at ten bits per byte
+    import patterns
+
+    for n in patterns.names():
+        size = len(encode_runs(patterns.make(n)))
+        print(f"{n:10s} {size:5d} bytes  {size * 10 / cfg.ARDUINO_BAUD * 1000:5.1f} ms at {cfg.ARDUINO_BAUD} baud")

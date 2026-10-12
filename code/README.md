@@ -1,11 +1,12 @@
 # Dynamic aperture capture
 
-The Pi drives the LCD in the optical path and fires the Canon EOS 60D over USB. The laptop
-drives the Pi from `camview_capture.py`, the same window as the Lab 3 capture tool with
-the Pi camera parts replaced by the DSLR and the panel. `capture_series.py` does the same
-from the command line for scripted runs. A sequence of patterns and frames runs on the Pi
-in its own thread, so no network delay sits between a pattern change and the shutter. The
-laptop polls for progress.
+Everything runs on one Ubuntu laptop. `server.py` streams each aperture pattern to an
+Arduino or ESP32 board that drives the LCD in the optical path and fires the Canon EOS
+60D through gphoto2 over USB. `camview_capture.py` drives the server from a window, the same window
+as the Lab 3 capture tool with the Pi camera parts replaced by the DSLR and the panel.
+`capture_series.py` does the same from the command line for scripted runs. A sequence of
+patterns and frames runs inside the server in its own thread, so the shutter fires a
+fixed settle time after each pattern lands. The clients poll for progress.
 
 The EOS 60D has live view over USB, so the camera view in the window streams what the
 camera sees. One process owns the USB link, so the stream pauses around each capture and
@@ -15,41 +16,36 @@ comes back afterwards. With live view off the window shows the last frame taken.
 
 | File | Purpose |
 | --- | --- |
+| [arduino/aperture_panel/aperture_panel.ino](arduino/aperture_panel/aperture_panel.ino) | The sketch. Takes each pattern over serial as run lengths and writes it to the panel as it arrives |
 | [camview_capture.py](camview_capture.py) | The main driver. Camera view, panel view and controls for patterns, camera settings, single frames and sequences |
 | [capture_series.py](capture_series.py) | Command line client for scripted runs |
-| [server.py](server.py) | Flask server on the Pi |
-| [config.py](config.py) | Panel geometry, SPI pins, lens pupil, the coded pair, named sequences |
+| [server.py](server.py) | Flask server that owns the panel and the camera |
+| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences |
 | [patterns.py](patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `masks/*.txt` grid, `scan0`..`scan8`, any PNG. `python patterns.py` writes them all to `out/patterns/` |
-| [display.py](display.py) | `st7735` for the real panel, `window` for the 7 inch screen or a laptop, `null` for tests |
+| [display.py](display.py) | `arduino` for the panel, `window` for a window on the laptop, `st7735` for the panel on a Raspberry Pi, `null` for tests. `python display.py` prints what each pattern costs on the serial link |
 | [camera.py](camera.py) | `gphoto` for the 60D. `dummy` writes the shown pattern so everything runs with no camera |
 | [liveview.py](liveview.py) | Live view stream from `gphoto2 --capture-movie`. The dummy version streams the panel image |
 | [preview.py](preview.py) | Pulls the embedded JPEG out of a CR2 for the camera view |
 | [show.py](show.py) | Show one pattern with no server |
 | `masks/` | Cell grids in the Lab 3 format. `zhou_a.txt` and `zhou_b.txt` are the 13 x 13 coded pair from figure 4 of Zhou, Lin and Nayar, ICCV 2009, sampled from the paper's own figure raster. `levin.txt` and `nayar.txt` are the Lab 3 masks |
 
-## Pi setup
+## Laptop setup
+
+Ubuntu. gphoto2 comes from apt and the Python side from pip. The serial port needs the
+`dialout` group, which takes effect at the next login.
 
 ```
-sudo raspi-config           # Interface Options -> SPI -> enable
-sudo apt install -y gphoto2 python3-pil.imagetk
-pip install -r requirements-pi.txt --break-system-packages
+sudo apt install -y gphoto2
+pip install -r requirements.txt
+sudo usermod -aG dialout $USER
 ```
 
-Panel wiring, BCM numbering, the Adafruit Pi guide default that `config.py` uses:
-
-| Panel pin | Pi pin |
-| --- | --- |
-| VIN | 3V3 |
-| GND | GND |
-| SCK | GPIO 11 (SCLK) |
-| MOSI | GPIO 10 |
-| TFT_CS | GPIO 8 (CE0) |
-| D/C | GPIO 24 |
-| RST | GPIO 25 |
-| LITE | not connected |
+ModemManager probes a new serial device for a few seconds after it appears, so the first
+connection after plugging in the Arduino can fail. Wait and retry, or remove it with
+`sudo apt remove modemmanager`.
 
 Camera: put the 60D's mode dial on M, switch the lens to MF, set the quality to RAW+JPEG
-on the body, turn off auto power off in the menu and plug the USB cable into the Pi.
+on the body, turn off auto power off in the menu and plug the USB cable into the laptop.
 RAW+JPEG gives a CR2 for processing and a JPEG the camera view shows at once. Check it:
 
 ```
@@ -59,42 +55,109 @@ gphoto2 --capture-image-and-download
 gphoto2 --stdout --capture-movie | head -c 100000 > /dev/null    # live view stream
 ```
 
-If gphoto2 says it cannot claim the USB device the desktop has mounted the camera as a
+If gphoto2 says it cannot claim the USB device, the desktop has mounted the camera as a
 drive. `server.py` kills the gvfs monitor at start. By hand it is
 `pkill -f gvfs-gphoto2-volume-monitor`.
 
+## Arduino or ESP32 setup
+
+Any Arduino or ESP32 board runs the sketch. It writes each run of pixels to the panel as
+the bytes arrive, so it needs no frame buffer and fits an Uno's 2 KB of RAM. The breakout
+has its own regulator and level shifter, so it takes 5 V from an Uno or 3.3 V from an
+ESP32 on both Vin and the logic pins.
+
+SCK and MOSI go to the board's hardware SPI pins, which the library picks on its own.
+CS, D/C and RST are defines at the top of the sketch, one block per board family, and
+any output pin will do. The sketch's defaults, with ESP32 pins as GPIO numbers:
+
+| Panel pin | Uno | ESP32 | ESP32-C3 | ESP32-S2 | ESP32-S3 |
+| --- | --- | --- | --- | --- | --- |
+| Vin | 5V | 3V3 | 3V3 | 3V3 | 3V3 |
+| GND | GND | GND | GND | GND | GND |
+| SCK | 13 | 18 | 4 | 36 | 12 |
+| MOSI | 11 | 23 | 6 | 35 | 11 |
+| TFT_CS | 10 | 5 | 7 | 34 | 10 |
+| D/C | 8 | 21 | 10 | 33 | 8 |
+| RST | 9 | 22 | 3 | 38 | 9 |
+| LITE | not connected | | | | |
+
+The ESP32 column covers the D1 mini ESP32 and the DevKit boards. A Mega's hardware SPI
+is on pins 50 to 52.
+
+Install Adafruit GFX Library and the Adafruit ST7735 and ST7789 Library from the Library
+Manager in the Arduino IDE and upload the sketch. An ESP32 needs the esp32 core from the
+Boards Manager first, with `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+under additional boards manager URLs. A C3, S2 or S3 mini with no USB bridge chip needs
+USB CDC On Boot set to Enabled in the Tools menu, so that `Serial` is the USB port. From
+the command line:
+
+```
+arduino-cli lib install "Adafruit GFX Library" "Adafruit ST7735 and ST7789 Library"
+
+arduino-cli core install arduino:avr
+arduino-cli compile --fqbn arduino:avr:uno arduino/aperture_panel
+arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/aperture_panel
+
+URL=https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli core update-index --additional-urls $URL
+arduino-cli core install esp32:esp32 --additional-urls $URL
+arduino-cli compile --fqbn esp32:esp32:esp32 arduino/aperture_panel                                 # classic ESP32
+arduino-cli compile --fqbn esp32:esp32:esp32c3 --board-options CDCOnBoot=cdc arduino/aperture_panel  # C3 mini
+arduino-cli compile --fqbn esp32:esp32:esp32s3 --board-options CDCOnBoot=cdc arduino/aperture_panel  # S3 mini
+arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 arduino/aperture_panel
+```
+
+The sketch prints `aperture 1 128 160` at 500000 baud on reset. `config.py` finds the
+board on its own, an Uno as `/dev/ttyACM0` and an ESP32 as `/dev/ttyUSB0` or
+`/dev/ttyACM0`. Set `ARDUINO_PORT` when the laptop has more than one serial device.
+`ARDUINO_BAUD` must match `BAUD` in the sketch. A board with native USB ignores the
+baud. An ESP32 may or may not reset when the port opens, so the backend waits for the
+banner and then asks for it.
+
+On Ubuntu the brltty screen reader service claims CH340 bridges, the chip on most ESP32
+minis, so the port vanishes a moment after it appears. `sudo apt remove brltty` fixes
+that.
+
+Two checks on the first run. `python show.py white --backend arduino` should fill the
+panel edge to edge. A strip of noise two pixels wide along one edge means the panel wants
+`INITR_GREENTAB` in the sketch. `python show.py scan0 --backend arduino` lights one corner
+tile. Note which corner of the glass that is, since the refocus code takes each tile's
+position from the pattern image.
+
+The `st7735` backend keeps the original layout, the panel wired to a Raspberry Pi over
+SPI on the pins in `config.py`. It needs `adafruit-circuitpython-rgb-display`.
+
 ## Run
 
-On the Pi:
+Two terminals on the laptop:
 
 ```
-python server.py --display st7735 --camera gphoto
-python server.py --display window --camera dummy     # development on the 7 inch screen
+python server.py --display arduino --camera gphoto
+python server.py --display window --camera dummy     # development, no hardware
 ```
 
-On the laptop:
+```
+python camview_capture.py --outdir captures
+```
 
-```
-pip install -r requirements-laptop.txt
-python camview_capture.py --host <pi> --outdir captures
-```
+`--host` on either client points at another machine that runs the server.
 
 The window has three panes. Camera View streams the DSLR's live view. With live view off
 it shows the last frame taken. Aperture Panel shows the image on the LCD, pixel for pixel.
 Controls has the pattern list and pupil diameter, the ISO, shutter speed and aperture read
 from the camera, a label and output folder, the Preview shot and Capture and save buttons
 and the sequence runner with a progress bar. Frames from a sequence download to the output
-folder when the Pi reports it finished.
+folder when the server reports it finished.
 
 The command line does the same:
 
 ```
-python capture_series.py --host <pi> --status
-python capture_series.py --host <pi> --set iso=100 --set shutterspeed=1/30
-python capture_series.py --host <pi> --pattern levin
-python capture_series.py --host <pi> --sequence pair --label 700mm --outdir captures/gate3
-python capture_series.py --host <pi> --sequence scan --label 1000mm --outdir captures/refocus
-python capture_series.py --host <pi> --patterns open star.png open --label bokeh
+python capture_series.py --status
+python capture_series.py --set iso=100 --set shutterspeed=1/30
+python capture_series.py --pattern levin
+python capture_series.py --sequence pair --label 700mm --outdir captures/gate3
+python capture_series.py --sequence scan --label 1000mm --outdir captures/refocus
+python capture_series.py --patterns open star.png open --label bokeh
 ```
 
 Frames land in `<outdir>/<label>_<index>_<pattern>.CR2` with `<label>_manifest.json`
@@ -111,7 +174,7 @@ files open in rawpy the same way the Lab 3 DNGs did.
 - `scan`: open, then the nine sub-aperture tiles, then open. Post-capture refocus.
 - `transmission`: white, black, open. The stops lost to the panel for Gate 1.
 
-Custom bokeh is any PNG on the Pi passed as a pattern name. White is open.
+Custom bokeh is any PNG the server can read, passed as a pattern name. White is open.
 
 ## Geometry
 
@@ -155,9 +218,15 @@ answers and runs all three gates on them.
 
 ## Timing
 
-The manifest's `shown_s` is when the SPI transfer finished. The cell then takes its own
-response time to settle. Measure that with a photodiode on the panel while `show.py`
-toggles `white` and `black`. That number, with the 60D's shutter lag, decides whether a
-flutter shutter code fits inside one exposure. The 60D's remote jack is the 2.5 mm E3
-type, which a GPIO pin can drive through an optocoupler when the flutter shutter needs
-tighter timing than USB gives.
+The manifest's `shown_s` is when the sketch's acknowledgement arrived, about a
+millisecond after its SPI write to the panel finished. The sketch writes each run as it
+arrives, so the serial transfer and the SPI write overlap and the write sets the frame
+time, about 50 ms on an Uno at 8 MHz and about 35 ms on an ESP32 at 10 MHz. `python
+display.py` prints the serial cost of every
+pattern: 8 ms for the open disc and under 15 ms for every named pattern at 500 kbaud.
+The cell then takes its own response time to settle. Measure that with a photodiode on
+the panel while `show.py` toggles `white` and `black`, or with the `fill()` call on the
+arduino backend, which sends one command instead of a frame. That number, with the 60D's
+shutter lag, decides whether a flutter shutter code fits inside one exposure. The 60D's
+remote jack is the 2.5 mm E3 type, which an Arduino pin can drive through an optocoupler
+when the flutter shutter needs tighter timing than USB gives.

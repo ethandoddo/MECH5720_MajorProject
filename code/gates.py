@@ -1,9 +1,9 @@
 """Score captured sessions against the three gates in the pitch.
 
 A session is the folder capture_series.py or camview_capture.py downloaded, holding
-<label>_<index>_<pattern>.<ext> frames and <label>_manifest.json. A session made on the
-Pi (captures/<stamp>_<label>/) works too. Every frame is a defocused point source in the
-image centre, as in the Lab 3 PSF protocol.
+<label>_<index>_<pattern>.<ext> frames and <label>_manifest.json. A session folder the
+server wrote (captures/<stamp>_<label>/) works too. Every frame is a defocused point
+source in the image centre, as in the Lab 3 PSF protocol.
 
   python gates.py gate1 captures/gate1/700mm_manifest.json --bare captures/bare/bare_00_open.CR2
   python gates.py gate2 captures/g2/700mm_manifest.json captures/g2/1000mm_manifest.json captures/g2/1300mm_manifest.json

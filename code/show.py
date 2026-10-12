@@ -1,8 +1,8 @@
-"""Show a pattern with no server, for checking patterns on the 7 inch screen or a laptop.
+"""Show a pattern with no server, for checking patterns in a window or on the panel.
 
   python show.py levin
   python show.py open --diameter 20
-  python show.py star.png --backend st7735
+  python show.py star.png --backend arduino
 """
 import argparse
 import time
@@ -14,11 +14,11 @@ from display import open_display
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("name")
-    ap.add_argument("--backend", choices=["window", "st7735", "null"], default="window")
+    ap.add_argument("--backend", choices=["window", "arduino", "st7735", "null"], default="window")
     ap.add_argument("--diameter", type=float, default=None, help="pupil diameter in mm")
     ap.add_argument("--seconds", type=float, default=0, help="close after this long; 0 keeps it open")
     ap.add_argument("--scale", type=int, default=None,
-                    help="window backend only: screen pixels per panel pixel; 1 is about life size on the 7 inch screen")
+                    help="window backend only: screen pixels per panel pixel")
     args = ap.parse_args()
 
     kw = {"scale": args.scale} if args.backend == "window" and args.scale else {}

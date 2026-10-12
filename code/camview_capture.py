@@ -1,15 +1,16 @@
-"""Camera view and control window for the aperture rig. Run this on your laptop while
-server.py is running on the Pi. This is the main way to drive the rig.
+"""Camera view and control window for the aperture rig. Run this on the laptop while
+server.py is running there too. This is the main way to drive the rig.
 
 Three windows: what the DSLR sees, what the panel is showing, and the controls for
 patterns, camera settings, single frames and sequences. With Live view on, the camera
 view streams the EOS 60D's live view. Off, it shows the last frame the camera took.
 Live view pauses around every capture because one process owns the USB link.
 
-  python camview_capture.py --host 192.168.1.100 --outdir captures
+  python camview_capture.py --outdir captures                       # server on this laptop
+  python camview_capture.py --host 192.168.1.100 --outdir captures  # server on another machine
 
 Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle
-  pip install -r requirements-laptop.txt
+  pip install -r requirements.txt
 """
 
 import argparse
@@ -339,7 +340,7 @@ def download_single(server, info, outdir, label):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="192.168.1.100")
+    parser.add_argument("--host", default="localhost")
     parser.add_argument("--port", default=8000, type=int)
     parser.add_argument("--outdir", default="captures", help="where downloaded frames go")
     parser.add_argument("--exit-after", type=float, default=0, help="seconds, for a smoke test")
@@ -362,9 +363,9 @@ def main():
             ui["sequences"] = st.get("sequences", {})
             if st.get("pattern") in ui["patterns"]:
                 ui["pattern_idx"] = ui["patterns"].index(st["pattern"])
-            set_status("Connected to Pi", OK)
+            set_status("Connected to server", OK)
         except Exception as e:
-            set_status(f"Could not reach the Pi: {e}", BAD)
+            set_status(f"Could not reach the server: {e}", BAD)
 
     def load_choices():
         try:
@@ -458,7 +459,7 @@ def main():
             imgui.text_colored(BUSY, "Last capture")
             draw_fitted(cam_tex, *cam_size)
         elif not connected:
-            centred_text("Connecting to the Pi...")
+            centred_text("Connecting to the server...")
         else:
             centred_text("No frame yet. Turn on Live view or press Preview shot.")
         imgui.end()
@@ -481,7 +482,7 @@ def main():
         imgui.set_next_window_pos((1200, 20), imgui.Cond_.first_use_ever)
         imgui.begin("Controls")
 
-        imgui.text("Pi: ")
+        imgui.text("Server: ")
         imgui.same_line()
         if connected:
             imgui.text_colored(OK, f"connected  {status['display']} / {status['camera']}")
@@ -516,7 +517,7 @@ def main():
         imgui.same_line()
         if imgui.button("Refresh list"):
             in_thread(load_lists)
-        changed, val = imgui.input_text("PNG on Pi", ui["png_path"])
+        changed, val = imgui.input_text("PNG on server", ui["png_path"])
         if changed:
             ui["png_path"] = val
         if imgui.button("Show PNG") and ui["png_path"]:

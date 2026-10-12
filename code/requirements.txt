@@ -1,0 +1,15 @@
+# Everything runs on the laptop: server.py, camview_capture.py and capture_series.py.
+#   sudo apt install -y gphoto2
+#   pip install -r requirements.txt
+flask
+pyserial
+requests
+numpy
+scipy
+pillow
+rawpy
+opencv-python
+glfw
+PyOpenGL
+imgui-bundle
+# the st7735 backend, the panel on a Raspberry Pi, also needs adafruit-circuitpython-rgb-display

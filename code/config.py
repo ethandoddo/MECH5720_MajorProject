@@ -1,4 +1,4 @@
-"""Settings shared by the Pi server, the laptop client and the pattern code."""
+"""Settings shared by the server, the clients, the pattern code and the arduino backend."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -8,11 +8,17 @@ SESSIONS = ROOT.parent / "captures"     # the server writes one folder per seque
 # ---- panel: Adafruit 358, ST7735R, 1.8 inch, portrait -------------------------------
 PANEL_W, PANEL_H = 128, 160
 PANEL_PITCH_MM = 28.03 / 128            # active area 28.03 x 35.04 mm, so 0.219 mm per pixel
-PANEL_ROTATION = 0                      # passed to the ST7735 driver: 0, 90, 180 or 270
+PANEL_ROTATION = 0                      # 0 or 180; the patterns are portrait, so the arduino backend refuses 90 and 270
 PANEL_INVERT = False                    # True when the stripped cell passes light where the image is black
-WINDOW_SCALE = 3                        # window backend: 128 x 160 becomes 384 x 480 on the 7 inch screen
+WINDOW_SCALE = 3                        # window backend: 128 x 160 becomes 384 x 480 on the laptop screen
 
-# SPI wiring in BCM numbering, the Adafruit Pi guide's default for this panel
+# ---- panel link ---------------------------------------------------------------------
+# arduino backend: the laptop streams patterns to arduino/aperture_panel on an Arduino or ESP32 over USB serial
+ARDUINO_PORT = None                     # None finds the first Arduino or ESP32; else "/dev/ttyACM0", "/dev/ttyUSB0" or "COM5"
+ARDUINO_BAUD = 500_000                  # must match BAUD in the sketch
+ARDUINO_TIMEOUT_S = 2.0                 # wait for the sketch's acknowledgement; a frame takes under 0.5 s
+
+# st7735 backend, the Raspberry Pi option: SPI wiring in BCM numbering, the Adafruit Pi guide's default
 SPI_BAUD = 24_000_000
 PIN_DC = 24
 PIN_RST = 25

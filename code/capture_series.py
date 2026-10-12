@@ -1,15 +1,15 @@
 """Command line client for the aperture server, for scripted runs. camview_capture.py is
-the window that does the same with a camera view. Run either on your laptop while
-server.py is running on the Pi.
+the window that does the same with a camera view. Run either on the laptop where
+server.py is running, or point --host at the machine that runs it.
 
-  python capture_series.py --host 192.168.1.100 --status
-  python capture_series.py --host 192.168.1.100 --pattern levin
-  python capture_series.py --host 192.168.1.100 --set iso=100 --set shutterspeed=1/30
-  python capture_series.py --host 192.168.1.100 --sequence pair --label 700mm --outdir captures/gate3
-  python capture_series.py --host 192.168.1.100 --patterns open levin nayar open --label 700mm
-  python capture_series.py --host 192.168.1.100 --sequence scan --label 1000mm --outdir captures/refocus
+  python capture_series.py --status
+  python capture_series.py --pattern levin
+  python capture_series.py --set iso=100 --set shutterspeed=1/30
+  python capture_series.py --sequence pair --label 700mm --outdir captures/gate3
+  python capture_series.py --patterns open levin nayar open --label 700mm
+  python capture_series.py --sequence scan --label 1000mm --outdir captures/refocus
 
-A sequence runs on the Pi and the files come back here named
+A sequence runs inside the server and the files come back to --outdir named
 <label>_<index>_<pattern>.<ext> with the manifest beside them.
 
 Requires: requests
@@ -42,7 +42,7 @@ def download(base_url, session, name, dest):
 
 
 def wait_for(base, session):
-    """poll the sequence until the Pi marks it done, printing frames as they land"""
+    """poll the sequence until the server marks it done, printing frames as they land"""
     seen = 0
     while True:
         m = requests.get(f"{base}/sequence/{session}", timeout=10).json()
@@ -56,10 +56,10 @@ def wait_for(base, session):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--host", default="192.168.1.100")
+    ap.add_argument("--host", default="localhost")
     ap.add_argument("--port", default=8000, type=int)
     ap.add_argument("--status", action="store_true", help="print server and camera state")
-    ap.add_argument("--camera", action="store_true", help="print gphoto2 --summary from the Pi")
+    ap.add_argument("--camera", action="store_true", help="print gphoto2 --summary from the server")
     ap.add_argument("--list-config", action="store_true", help="print every gphoto2 config key")
     ap.add_argument("--set", dest="settings", action="append", default=[], metavar="NAME=VALUE",
                     help="camera setting, repeatable, e.g. --set iso=100 --set shutterspeed=1/30")
