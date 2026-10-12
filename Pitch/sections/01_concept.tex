@@ -11,7 +11,7 @@
  \noindent Once the gates pass, four secondary goals follow, all built from the dynamic aperture. The first is depth estimation. The two frames carry the patterns of a coded aperture pair [\rl{G6}] and a joint deconvolution of the pair recovers a depth map and an all-in-focus image. The second is post-capture refocus, which extends the capture to nine frames, each opening a different sub-aperture [\rl{G3}]. The third is custom bokeh, which repeats the dynamic aperture test with aperture shapes we design ourselves. The fourth is a flutter shutter, which switches the pattern within one exposure. Gate 3 measures whether the panel switches fast enough.
 
 \vspace{\baselineskip}
- \noindent We found a hobbyist build that fits an LCD iris to a camera lens [\rl{G1}, \rl{G2}] and published research that uses controllable apertures for coded imaging [\rl{G4}, \rl{G5}]. Together they show that each part of this plan has been done before, so the risk lies in the integration rather than the concept.
+ \noindent We found a hobbyist build that fits an LCD iris to a camera lens [\rl{G1}, \rl{G2}] and published research that uses controllable apertures for coded imaging [\rl{G4}, \rl{G5}]. Together they show that every part of this plan has been done before. What remains untested is combining them in one camera.
 
 
 \vspace{0.4em}
@@ -29,7 +29,7 @@ A defocused point images as a scaled copy of the aperture. That holds only near 
     \item \textbf{Gate 1, panel acts as an aperture:} a defocused point source matches the displayed pattern with normalised cross-correlation (NCC) $\geq 0.8$. Transmission loss stays at or below 3 stops.
     \item \textbf{Gate 2, coded pair PSFs:} PSF width grows with defocus. The two coded MTFs share no zeros in the target band, while the open-disc MTF shows its expected zeros.
     \item \textbf{Gate 3, dynamic aperture (the requirement):} two consecutive frames of a static point source show the two coded patterns at NCC $\geq 0.8$ each. Open-disc control frames before and after register within one pixel. The measured switching time decides whether a flutter shutter is possible.
-    \item \textbf{Depth estimation, first application}, with textured targets at 700, 1000 and 1300\,mm: RMS depth error below 10\,\% of true distance. The all-in-focus image beats the open disc stopped down to the same depth of field on SSIM.
+    \item \textbf{Depth estimation, first application}, with textured targets at 700, 1000 and 1300\,mm: RMS depth error below 10\,\% of true distance. The all-in-focus image beats the open disc stopped down to the same depth of field on structural similarity index measure (SSIM).
     \item \textbf{Post-capture refocus:} each target reaches peak SSIM against its in-focus reference at its true depth.
     \item \textbf{Custom bokeh:} every out-of-focus highlight reaches NCC $\geq 0.8$ against its displayed shape.
     \item \textbf{Flutter shutter}, only if the switching time allows a useful code in one exposure: deblurring narrows edge width on a moving target.

@@ -21,3 +21,7 @@
 __pycache__/
 code/out/
 imgui.ini
+
+# Course lecture slides
+Slides/
+prose_backup/
