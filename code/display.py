@@ -10,9 +10,16 @@
 show() returns the time.monotonic() at which the backend finished pushing the frame.
 The cell then still needs its own response time, which a photodiode has to measure.
 `python display.py` prints what every pattern costs on the serial link.
+
+play_code() plays a flutter shutter code, every chop the whole panel open or shut, and
+read_play() blocks until it has finished and returns the trace: the photodiode samples
+and when each switch happened. The arduino backend has the sketch do it from the board's
+own clock. The other backends play it from a thread with full frames and return the ideal
+trace, so a flutter run goes end to end with no hardware.
 """
 import os
 import queue
+import struct
 import threading
 import time
 
@@ -21,18 +28,77 @@ from PIL import Image
 
 import config as cfg
 
+MAX_CHOPS = 64          # the sketch's limit, as flutter.py has it
+
+
+def flat(white):
+    """every pixel open (white) or shut, as the pattern code would draw it, so PANEL_INVERT applies"""
+    open_px = 255 if white else 0
+    return Image.new("L", (cfg.PANEL_W, cfg.PANEL_H), 255 - open_px if cfg.PANEL_INVERT else open_px)
+
 
 class Display:
     name = "base"
 
     def __init__(self):
         self.last = None
+        self._play = None
 
     def show(self, img):
         raise NotImplementedError
 
     def close(self):
         pass
+
+    def play_code(self, code, chop_ms, lead_ms, tail_ms, sample_ms=0, method="invert"):
+        """start playing the code from a thread with full frames; returns when the clock
+        started. Backends with a board of their own override this"""
+        code = [1 if b else 0 for b in code]
+        if not 1 <= len(code) <= MAX_CHOPS:
+            raise ValueError(f"a code has 1 to {MAX_CHOPS} chops")
+        self.show(flat(False))
+        t0 = time.monotonic()
+        self._play = {"code": code, "chop": chop_ms, "lead": lead_ms, "tail": tail_ms, "sample": sample_ms,
+                      "t0": t0, "start": [], "end": [], "error": None}
+        self._play["thread"] = threading.Thread(target=self._run_play, daemon=True)
+        self._play["thread"].start()
+        return t0
+
+    def _run_play(self):
+        p = self._play
+        try:
+            shown = False
+            for i in range(len(p["code"]) + 1):
+                due = p["t0"] + (p["lead"] + i * p["chop"]) / 1000
+                want = i < len(p["code"]) and bool(p["code"][i])
+                time.sleep(max(0.0, due - time.monotonic()))
+                p["start"].append(round((time.monotonic() - p["t0"]) * 1000))
+                if want != shown:
+                    self.show(flat(want))
+                    shown = want
+                p["end"].append(round((time.monotonic() - p["t0"]) * 1000))
+            end = p["t0"] + (p["lead"] + len(p["code"]) * p["chop"] + p["tail"]) / 1000
+            time.sleep(max(0.0, end - time.monotonic()))
+        except Exception as e:
+            p["error"] = str(e)
+
+    def read_play(self):
+        """wait for the code to finish; the trace with ideal photodiode samples, 1023 while open"""
+        p = self._play
+        if p is None:
+            raise RuntimeError("no code is playing")
+        p["thread"].join()
+        self._play = None
+        if p["error"]:
+            raise RuntimeError(f"playback failed: {p['error']}")
+        n, chop, lead = len(p["code"]), p["chop"], p["lead"]
+        total = lead + n * chop + p["tail"]
+        samples = []
+        if p["sample"]:
+            for t in range(0, total, p["sample"]):
+                i = (t - lead) // chop
+                samples.append([t, 1023 if 0 <= i < n and p["code"][i] else 0])
+        return {"samples": samples, "adc_max": 1023, "start_ms": p["start"], "end_ms": p["end"]}
 
 
 class NullDisplay(Display):
@@ -262,6 +328,74 @@ class ArduinoDisplay(Display):
         t = self._ack()
         self.last = Image.new("L", (cfg.PANEL_W, cfg.PANEL_H), 255 if white else 0)
         return t
+
+    def invert(self, on):
+        """flip every pixel with one controller command, or restore them. Three SPI bytes,
+        so a black panel turns white in the time the liquid crystal takes and no more"""
+        self.ser.reset_input_buffer()
+        self.ser.write(bytes([ord("I"), 1 if on else 0]))
+        t = self._ack()
+        if self.last is not None and on:
+            self.last = Image.fromarray(255 - np.asarray(self.last.convert("L")))
+        return t
+
+    def play_code(self, code, chop_ms, lead_ms, tail_ms, sample_ms=0, method="invert"):
+        """hand the code to the sketch, which plays it from its own clock. Returns the time
+        its clock started, when the 'P' acknowledgement arrived. read_play() collects the
+        photodiode samples and the switch times once it has finished"""
+        code = [1 if b else 0 for b in code]
+        n = len(code)
+        if not 1 <= n <= MAX_CHOPS:
+            raise ValueError(f"a code has 1 to {MAX_CHOPS} chops")
+        if method not in ("invert", "fill"):
+            raise ValueError("method is invert or fill")
+        bits = bytearray((n + 7) // 8)
+        for i, b in enumerate(code):
+            if b:
+                bits[i >> 3] |= 0x80 >> (i & 7)
+        header = struct.pack("<BBBHHHH", 0 if method == "invert" else 1, 0 if cfg.PANEL_INVERT else 1, n,
+                             int(chop_ms), int(lead_ms), int(tail_ms), int(sample_ms))
+        self.ser.reset_input_buffer()
+        self.ser.write(b"P" + header + bytes(bits))
+        self.ser.timeout = cfg.ARDUINO_TIMEOUT_S
+        reply = self.ser.read(1)
+        if reply == b"E":
+            raise RuntimeError("the sketch rejected the code")
+        if reply != b"P":
+            raise RuntimeError(f"no play acknowledgement from {self.port} within {cfg.ARDUINO_TIMEOUT_S} s")
+        self.last = flat(False)
+        self._play = {"n": n, "total_s": (int(lead_ms) + n * int(chop_ms) + int(tail_ms)) / 1000}
+        return time.monotonic()
+
+    def read_play(self):
+        """block until the sketch reports, then the trace: samples as [ms, adc] pairs, the
+        ADC full scale and when each switch started and finished in ms since the clock started"""
+        p = self._play
+        if p is None:
+            raise RuntimeError("no code is playing")
+        self._play = None
+        self.ser.timeout = p["total_s"] + 5
+        samples = []
+        while True:
+            raw = self.ser.read(4)
+            if len(raw) < 4:
+                raise RuntimeError("the sketch stopped reporting during the code")
+            t, v = struct.unpack("<HH", raw)
+            if t == 0xFFFF and v == 0xFFFF:
+                break
+            samples.append([t, v])
+        self.ser.timeout = cfg.ARDUINO_TIMEOUT_S
+        head = self.ser.read(3)
+        if len(head) < 3 or head[0] != ord("D") or head[1] != p["n"]:
+            raise RuntimeError("the sketch's play report is malformed")
+        adc_bits = head[2]
+        words = 2 * (p["n"] + 1)
+        raw = self.ser.read(2 * words)
+        if len(raw) < 2 * words:
+            raise RuntimeError("the sketch's play report is short")
+        times = struct.unpack(f"<{words}H", raw)
+        return {"samples": samples, "adc_max": (1 << adc_bits) - 1,
+                "start_ms": list(times[:p["n"] + 1]), "end_ms": list(times[p["n"] + 1:])}
 
     def close(self):
         self.ser.close()

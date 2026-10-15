@@ -16,7 +16,7 @@ WINDOW_SCALE = 3                        # window backend: 128 x 160 becomes 384 
 # arduino backend: the laptop streams patterns to arduino/aperture_panel on an Arduino or ESP32 over USB serial
 ARDUINO_PORT = None                     # None finds the first Arduino or ESP32; else "/dev/ttyACM0", "/dev/ttyUSB0" or "COM5"
 ARDUINO_BAUD = 500_000                  # must match BAUD in the sketch
-ARDUINO_PROTOCOL = 2                    # must match PROTOCOL in the sketch, which the banner reports
+ARDUINO_PROTOCOL = 3                    # must match PROTOCOL in the sketch, which the banner reports
 ARDUINO_CREDIT = 16                     # must match CREDIT_BYTES in the sketch: one 'c' per this many bytes taken
 ARDUINO_WINDOW = 48                     # most frame bytes in flight; under the Uno's 64 byte receive buffer
 ARDUINO_TIMEOUT_S = 2.0                 # wait for the sketch's acknowledgement; a frame takes under 0.5 s
@@ -34,12 +34,28 @@ PUPIL_MM = FOCAL_MM / F_NUMBER          # entrance pupil the pattern has to cove
 
 # ---- patterns -----------------------------------------------------------------------
 PAIR = ("zhou_a", "zhou_b")             # Zhou, Lin and Nayar 2009, fig. 4, 13 x 13; levin / nayar are the Lab 3 masks
-SCAN_N = 3                              # sub-aperture scan is SCAN_N x SCAN_N tiles, nine for post-capture refocus
+SCAN_N = 3                              # sub-aperture scan is SCAN_N x SCAN_N tiles, nine for post-capture refocus; scan5_12 is tile 12 of a 5 x 5
+REFOCUS_F_NUMBER = 5.6                  # the one-frame refocus baseline: an open disc the size of this stop
 SEQUENCES = {
     "pair": ["open", PAIR[0], PAIR[1], "open"],
     "scan": ["open"] + [f"scan{i}" for i in range(SCAN_N * SCAN_N)] + ["open"],
     "transmission": ["white", "black", "open"],
 }
+
+# ---- flutter shutter ----------------------------------------------------------------
+# The panel is the shutter: the camera sits open in bulb mode while the board plays a binary code
+# on the panel from its own clock. flutter.py designs the code and server.py runs the capture.
+FLUTTER_CHOPS = 32                      # chops in the designed code, half of them open
+FLUTTER_CHOP_MS = 100                   # default chop length; the cell switches in 30 to 70 ms, so shorter chops blur
+FLUTTER_LEAD_MS = 2000                  # panel shut from the play command until the code starts, so gphoto2 has opened the bulb
+FLUTTER_TAIL_MS = 500                   # panel shut after the code until the board reports; the bulb closes after that
+FLUTTER_SAMPLE_MS = 5                   # photodiode sample interval on the board; the window sends 0 when the box is unticked
+FLUTTER_SEED = 0                        # the random search in flutter.py is repeatable, so every machine designs the same code
+FLUTTER_MAX_S = 60                      # lead + code + tail must fit the board's 16 bit millisecond clock
+BULB_OPEN = "bulb=1"                    # gphoto2 config that opens the shutter with the mode dial on B
+BULB_CLOSE = "bulb=0"                   # and closes it. If the body refuses, try eosremoterelease=Immediate and "eosremoterelease=Release Full"
+BULB_DOWNLOAD_S = 8                     # wait for the frame after the bulb closes; a 60D RAW takes a few seconds over USB 2
+IMPULSE_SHUTTER = "1/250"               # default shutter for the impulse baseline, with the mode dial on M
 
 # ---- camera -------------------------------------------------------------------------
 GPHOTO_BIN = "gphoto2"

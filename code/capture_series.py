@@ -11,11 +11,18 @@ server.py is running, or point --host at the machine that runs it.
   python capture_series.py --patterns open ~/star.png ~/walk.gif open --label bokeh
   python capture_series.py --play ~/walk.gif --speed 2
   python capture_series.py --stop
+  python capture_series.py --code designed --chop 100 --label flutter      # one coded bulb frame
+  python capture_series.py --code 1011001 --chop 200 --no-capture          # play it, trace only
+  python capture_series.py --go                                            # a paused job carries on
+  python capture_series.py --abort                                         # stop the running job
 
 A sequence runs inside the server and the files come back to --outdir named
 <label>_<index>_<pattern>.<ext> with the manifest beside them. A GIF in --patterns gives
 one frame per GIF frame, and an image path is named by its file stem, walk_f03 for frame
-3 of walk.gif.
+3 of walk.gif. --code plays a flutter shutter code on the panel while the camera sits
+open in bulb mode, "designed" for the code flutter.py designs, and the photodiode trace
+comes back as <label>_00_code.json. The Experiments window in camview_capture.py builds
+the full flutter set with its baselines.
 
 Requires: requests
 """
@@ -52,7 +59,8 @@ def wait_for(base, session):
     while True:
         m = requests.get(f"{base}/sequence/{session}", timeout=10).json()
         for fr in m["frames"][seen:]:
-            print(f"{fr['index']:02d} {fr.get('tag', fr['pattern']):10s} shown {fr['shown_s']:7.3f}s fired {fr['fired_s']:7.3f}s")
+            fired = "   none" if fr.get("fired_s") is None else f"{fr['fired_s']:7.3f}s"
+            print(f"{fr['index']:02d} {fr.get('tag', fr['pattern']):10s} shown {fr['shown_s']:7.3f}s fired {fired}")
         seen = len(m["frames"])
         if m.get("done"):
             return m
@@ -83,8 +91,18 @@ def main():
     ap.add_argument("--image-scale", type=float, default=1.0,
                     help="PNG and GIF size against the pupil: 1 = longest side fills it, 0.71 = fits inside the circle")
     ap.add_argument("--rotate", type=float, default=0.0, help="turn the pattern this many degrees anticlockwise")
+    ap.add_argument("--code", help="flutter shutter code of 0s and 1s, or 'designed'; plays it in one bulb frame")
+    ap.add_argument("--chop", type=int, default=None, help="with --code: chop length in ms, default from config")
+    ap.add_argument("--method", choices=["invert", "fill"], default="invert", help="with --code: how the panel switches")
+    ap.add_argument("--no-capture", action="store_true", help="with --code: play it and record the trace, no camera")
+    ap.add_argument("--go", action="store_true", help="let a paused job carry on")
+    ap.add_argument("--abort", action="store_true", help="stop the running job after its current step")
     args = ap.parse_args()
     base = f"http://{args.host}:{args.port}"
+
+    if args.go or args.abort:
+        r = requests.post(f"{base}/sequence/{'go' if args.go else 'stop'}", json={}, timeout=10)
+        print(r.json().get("note") or r.json().get("error") or "ok")
 
     if args.status:
         print(json.dumps(requests.get(f"{base}/status", timeout=5).json(), indent=2))
@@ -130,9 +148,18 @@ def main():
         print(f"playing {info['playing']} at {info['speed']}x" +
               (f", {info['frames']} frames" if "frames" in info else ""))
 
-    if args.sequence or args.patterns:
+    if args.sequence or args.patterns or args.code:
         body = {"label": args.label, "image_scale": args.image_scale, "rotation_deg": args.rotate}
-        if args.patterns:
+        if args.code:
+            code = args.code
+            if code == "designed":
+                import flutter
+                code = flutter.to_text(flutter.design())
+            step = {"code": code, "method": args.method, "capture": not args.no_capture}
+            if args.chop is not None:
+                step["chop_ms"] = args.chop
+            body["patterns"] = [step]
+        elif args.patterns:
             # the server opens image paths from its own working directory, so send them absolute
             body["patterns"] = [os.path.abspath(p) if p.lower().endswith((".png", ".gif")) else p
                                 for p in args.patterns]

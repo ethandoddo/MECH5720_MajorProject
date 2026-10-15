@@ -4,9 +4,12 @@ Everything runs on one Ubuntu laptop. `server.py` streams each aperture pattern 
 Arduino or ESP32 board that drives the LCD in the optical path and fires the Canon EOS
 60D through gphoto2 over USB. `camview_capture.py` drives the server from a window, the same window
 as the Lab 3 capture tool with the Pi camera parts replaced by the DSLR and the panel.
-`capture_series.py` does the same from the command line for scripted runs. A sequence of
-patterns and frames runs inside the server in its own thread, so the shutter fires a
-fixed settle time after each pattern lands. The clients poll for progress.
+Its Experiments window runs the capture set for each application: depth, refocus, bokeh
+and the flutter shutter. `capture_series.py` does the same from the command line for
+scripted runs. A sequence of patterns and frames runs inside the server in its own
+thread, so the shutter fires a fixed settle time after each pattern lands. The clients
+poll for progress. For the flutter shutter the board plays a code on the panel from its
+own clock while the camera sits open in bulb mode, so the panel is the shutter.
 
 The EOS 60D has live view over USB, so the camera view in the window streams what the
 camera sees. One process owns the USB link, so the stream pauses around each capture and
@@ -20,18 +23,114 @@ stopped. The window shows the last frame taken until the box is ticked again.
 
 | File | Purpose |
 | --- | --- |
-| [arduino/aperture_panel/aperture_panel.ino](arduino/aperture_panel/aperture_panel.ino) | The sketch. Takes each pattern over serial as run lengths and writes it to the panel as it arrives |
-| [camview_capture.py](camview_capture.py) | The main driver. Camera view, panel view and controls for patterns, camera settings, single frames and sequences |
+| [arduino/aperture_panel/aperture_panel.ino](arduino/aperture_panel/aperture_panel.ino) | The sketch. Takes each pattern over serial as run lengths and writes it to the panel as it arrives. Plays a flutter shutter code from its own clock and reads the photodiode |
+| [camview_capture.py](camview_capture.py) | The main driver. Camera view, panel view, controls for patterns, camera settings, single frames and sequences, and the Experiments window |
 | [capture_series.py](capture_series.py) | Command line client for scripted runs |
 | [server.py](server.py) | Flask server that owns the panel and the camera |
-| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences |
-| [patterns.py](patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `masks/*.txt` grid, `scan0`..`scan8`, any PNG or GIF frame. `python patterns.py` writes them all to `out/patterns/` |
+| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences, the flutter shutter and bulb settings |
+| [patterns.py](patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `masks/*.txt` grid, `scan0`..`scan8`, `scan5_0`..`scan5_24` for a 5 x 5 scan, any PNG or GIF frame. `python patterns.py` writes the named ones to `out/patterns/` |
+| [flutter.py](flutter.py) | Designs the flutter shutter code and checks its timing. `python flutter.py` prints the default code and its score |
 | [display.py](display.py) | `arduino` for the panel, `window` for a window on the laptop, `st7735` for the panel on a Raspberry Pi, `null` for tests. `python display.py` prints what each pattern costs on the serial link |
-| [camera.py](camera.py) | `gphoto` for the 60D. `dummy` writes the shown pattern so everything runs with no camera |
+| [camera.py](camera.py) | `gphoto` for the 60D, stills and bulb exposures. `dummy` writes the shown pattern so everything runs with no camera |
 | [liveview.py](liveview.py) | Live view stream from `gphoto2 --capture-movie`. The dummy version streams the panel image |
 | [preview.py](preview.py) | Pulls the embedded JPEG out of a CR2 for the camera view |
 | [show.py](show.py) | Show one pattern with no server |
 | `masks/` | Cell grids in the Lab 3 format. `zhou_a.txt` and `zhou_b.txt` are the 13 x 13 coded pair from figure 4 of Zhou, Lin and Nayar, ICCV 2009, sampled from the paper's own figure raster. `levin.txt` and `nayar.txt` are the Lab 3 masks |
+
+## Step by step
+
+The sections after this one explain each part. This one is the order to do things in.
+
+### First run
+
+1. Set the laptop up once. Log out and in again afterwards for the serial port group.
+   ```
+   sudo apt install -y gphoto2 zenity
+   pip install -r requirements.txt
+   sudo usermod -aG dialout $USER
+   curl -fL -o ~/.local/bin/dnglab https://github.com/dnglab/dnglab/releases/download/v0.8.0/dnglab_linux_x64
+   chmod +x ~/.local/bin/dnglab
+   ```
+2. Wire the panel to the board as the table under Arduino or ESP32 setup shows, plug the
+   board in and upload the sketch. Do this again after every pull that changes the sketch.
+   ```
+   arduino-cli lib install "Adafruit GFX Library" "Adafruit ST7735 and ST7789 Library"
+   arduino-cli core install arduino:avr
+   arduino-cli compile --fqbn arduino:avr:uno arduino/aperture_panel
+   arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/aperture_panel
+   ```
+3. Set the camera up: mode dial on M, lens on MF, iris at f/1.8 so the panel is the stop,
+   quality RAW+JPEG, auto power off and long exposure noise reduction off in the menu.
+   Plug it in and check the laptop sees it.
+   ```
+   gphoto2 --auto-detect
+   gphoto2 --capture-image-and-download
+   ```
+4. Start the server in one terminal and leave it running.
+   ```
+   python server.py --display arduino --camera gphoto
+   ```
+   It prints `display=arduino camera=gphoto pupil 27.8 mm = 126.8 px` when both are up.
+   `--display window --camera dummy` runs the whole thing with nothing plugged in.
+5. Check the panel from a second terminal. `white` should fill the glass edge to edge and
+   `scan0` should light one corner tile. Note which corner.
+   ```
+   python show.py white --backend arduino
+   python show.py scan0 --backend arduino
+   ```
+   Look through the lens at `white` and `black`. If the glass passes light where the image
+   is black, set `PANEL_INVERT = True` in `config.py` and restart the server.
+6. Start the window in the second terminal.
+   ```
+   python camview_capture.py --outdir captures
+   ```
+   Set the ISO and shutter speed under Camera in Controls. Tick Live view to frame the
+   scene and untick it before a run, since it drains the battery.
+
+### An experiment
+
+1. Place the target and type its distance into Target distance mm in the Experiments
+   window. Set Repeats to 5 for the error bars.
+2. Pick the tab and press the button for the capture. The progress bar at the top of the
+   window counts the steps.
+3. When the window says Waiting for you, do what the prompt says, then press Continue.
+   Stop ends the run after the current step.
+4. The frames land in `captures/<experiment>/` with the manifest beside them once the run
+   ends. The Activity line in Controls says when.
+
+The buttons per tab, in the order to run them:
+
+- **Depth**, point source at each distance: PSF set. Then the textured target at each
+  distance: Pair, Singles, Card pair.
+- **Refocus**, target at each distance: Scan 3x3, Scan 5x5, f/5.6 frame, Lens focus.
+- **Bokeh**, highlights in the scene: Browse to the shape, Capture, Card shape.
+- **Flutter**: the next list.
+
+### The flutter shutter
+
+1. Wire the photodiode to A0 as the wiring table shows and tape it behind the panel.
+2. Light the scene with lamps on a direct current supply. Mains lighting flickers at 100 Hz.
+3. On the Flutter tab leave the designed code, set Chop ms to 100, pick Invert, tick
+   Photodiode and press Switch test. The panel flutters with no camera. Open
+   `captures/flutter/flutter_switch_100ms_invert_00_switch.json` and read the rise and
+   fall from `samples`. If the trace never reaches full white, Invert does not work on this
+   panel and Frame write is the method.
+4. Set Blur px to 100. The line under it gives the target speed in px/s for the chop. Set
+   the target slider to that speed. At 1000 mm one pixel is 82 µm of the target.
+5. Tick all six captures, set Repeats to 5 and press Run. Follow the prompts in order:
+   dial on B and the target moving, dial on M for the impulse frames, target stopped and
+   dial on B for the reference, lens cap on for the darks, lens cap off at the end.
+6. Repeat step 5 with Frame write at 100 ms and at 200 ms.
+7. Repeat step 5 with Invert at 25, 50 and 200 ms, resetting the target speed each time.
+8. Repeat step 5 at 100 ms at the other light levels.
+
+The same from the command line, one coded bulb frame at a time:
+
+```
+python capture_series.py --code designed --chop 100 --no-capture --label switch --outdir captures/flutter
+python capture_series.py --code designed --chop 100 --label coded --outdir captures/flutter
+python capture_series.py --go        # from another terminal when a job is waiting
+```
 
 ## Laptop setup
 
@@ -60,8 +159,10 @@ connection after plugging in the Arduino can fail. Wait and retry, or remove it 
 `sudo apt remove modemmanager`.
 
 Camera: put the 60D's mode dial on M, switch the lens to MF, set the quality to RAW+JPEG
-on the body, turn off auto power off in the menu and plug the USB cable into the laptop.
-RAW+JPEG gives a CR2 for processing and a JPEG the camera view shows at once. Check it:
+on the body, turn off auto power off and long exposure noise reduction in the menu and
+plug the USB cable into the laptop. RAW+JPEG gives a CR2 for processing and a JPEG the
+camera view shows at once. The flutter shutter needs the dial on B, which the window
+prompts for. Check it:
 
 ```
 gphoto2 --auto-detect
@@ -95,9 +196,14 @@ any output pin will do. The sketch's defaults, with ESP32 pins as GPIO numbers:
 | D/C | 8 | 21 | 10 | 33 | 8 |
 | RST | 9 | 22 | 3 | 38 | 9 |
 | LITE | not connected | | | | |
+| PHOTO | A0 | 34 | 0 | 1 | 1 |
 
 The ESP32 column covers the D1 mini ESP32 and the DevKit boards. A Mega's hardware SPI
-is on pins 50 to 52.
+is on pins 50 to 52. PHOTO is the photodiode for the flutter shutter, an analogue input:
+a photodiode or phototransistor from the pin to GND with a load resistor from the pin to
+the supply, so the reading rises with light. Start with 100 kΩ and drop it if the reading
+saturates. It is optional. With the Photodiode box unticked the sketch plays the code and
+reports the switch times alone.
 
 Install Adafruit GFX Library and the Adafruit ST7735 and ST7789 Library from the Library
 Manager in the Arduino IDE and upload the sketch. An ESP32 needs the esp32 core from the
@@ -122,7 +228,7 @@ arduino-cli compile --fqbn esp32:esp32:esp32s3 --board-options CDCOnBoot=cdc ard
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 arduino/aperture_panel
 ```
 
-The sketch prints `aperture 2 128 160` at 500000 baud on reset, where 2 is the protocol
+The sketch prints `aperture 3 128 160` at 500000 baud on reset, where 3 is the protocol
 version. The backend refuses a board that reports another version, so upload the sketch
 again after pulling changes to it. `config.py` finds the board on its own, an Uno as
 `/dev/ttyACM0` (`/dev/ttyUSB0` for a clone with a CH340 chip) and an ESP32 as
@@ -169,12 +275,14 @@ python camview_capture.py --outdir captures
 
 `--host` on either client points at another machine that runs the server.
 
-The window has three panes. Camera View streams the DSLR's live view. With live view off
+The window has four panes. Camera View streams the DSLR's live view. With live view off
 it shows the last frame taken. Aperture Panel shows the image on the LCD, pixel for pixel.
 Controls has the pattern list and pupil diameter, the ISO, shutter speed and aperture read
 from the camera, a label and output folder, the Preview shot and Capture and save buttons
-and the sequence runner with a progress bar. Frames from a sequence download to the output
-folder when the server reports it finished.
+and the sequence runner with a progress bar. Experiments has a tab for each application,
+described under Experiments below. Frames from a sequence download to the output folder
+when the server reports it finished. The pane layout saves to `imgui.ini`, so delete that
+file to get the default layout back after pulling a change to it.
 
 Image files come in through Browse... and Add files..., a file dialog that needs zenity,
 which Ubuntu ships. Browse... fills the Image field. Show image puts a PNG, or the first
@@ -201,6 +309,10 @@ python capture_series.py --sequence scan --label 1000mm --outdir captures/refocu
 python capture_series.py --patterns open star.png walk.gif open --label bokeh
 python capture_series.py --play walk.gif --speed 2
 python capture_series.py --stop
+python capture_series.py --code designed --chop 100 --label flutter      # one coded bulb frame
+python capture_series.py --code 1011001 --chop 50 --no-capture           # play it and record the trace
+python capture_series.py --go                                            # a paused job carries on
+python capture_series.py --abort                                         # stop the running job
 ```
 
 Frames land in `<outdir>/<label>_<index>_<pattern>.CR2`, `.JPG` and `.dng` with `<label>_manifest.json`
@@ -222,6 +334,16 @@ file name part in `tag`.
 - `scan`: open, then the nine sub-aperture tiles, then open. Post-capture refocus.
 - `transmission`: white, black, open. The stops lost to the panel for Gate 1.
 
+A sequence entry can be a step object instead of a name. `{"pattern": "white", "tag":
+"card_open", "prompt": "Fit the open card"}` pauses the job with the prompt on show until
+Continue in the window or `--go` on the command line, then shows the pattern and fires.
+`"camera": {"shutterspeed": "1/250"}` sets the camera first, `"diameter_mm": 8.9` sizes
+that one frame and `"capture": false` shows the pattern and takes no frame. `{"prompt":
+"Take the lens cap off"}` alone pauses and takes nothing. `{"code": "1011...", "chop_ms":
+100}` is a flutter shutter step, described below. Stop ends the job after its current
+step, and a job that is stopped or fails still writes its manifest with the frames it took.
+The manifest keeps the full step list under `steps`.
+
 Custom bokeh is any PNG the server can read, passed as a pattern name. In an image with
 transparency, such as the sprites in `sprites/`, the transparent pixels are open, like clear
 glass, and every opaque pixel is shut, black and grey alike. The sprites are transparent
@@ -242,6 +364,92 @@ so judge rotated sessions with that in mind. Changing Pupil mm, Image size or Ro
 the window redraws whatever is on the panel 0.4 s after the value stops changing. A
 GIF expands to one frame per GIF frame, so `walk.gif` in a list is `walk.gif#0`,
 `walk.gif#1` and so on, and `walk.gif#3` on its own is one frame.
+
+## Experiments
+
+The Experiments window turns each application into a list of steps and runs them as one
+sequence. Repeats runs the whole list that many times for the error bars, and Target
+distance goes into the label. Frames download to `<outdir>/<experiment>/`. Every button
+uses the Settle, Pupil mm, Image size and Rotation set in Controls. A step that needs a
+hand, a card swap or the lens cap, pauses the job and shows the prompt at the top of the
+window with Continue and Stop beside it.
+
+- **Depth.** PSF set is open, Zhou A, Zhou B, Levin and black for a point source. Pair is
+  open, Zhou A, Zhou B, open for a textured target. Singles takes each coded pattern twice,
+  so one pattern gets the pair's exposure. Card pair takes the same four frames through
+  hand-fitted cards with the panel white, pausing before each card, the baseline for what
+  the panel costs.
+- **Refocus.** Scan 3x3 and Scan 5x5 take open, every tile, black and open. The f/5.6
+  frame is one open disc 8.9 mm wide, the depth of field the 3x3 refocus reaches with no
+  scan, the one-frame baseline. Lens focus pauses for you to focus the lens on the target
+  by hand and takes the in-focus reference for SSIM.
+- **Bokeh.** Browse to a PNG or GIF of the shape. Capture takes open, the shape, open at
+  the Image size and Rotation from Controls. Card shape takes the same through a laser-cut
+  card.
+- **Flutter.** Described in the next section.
+
+## Flutter shutter
+
+The flutter shutter of Raskar, Agrawal and Tumblin opens and closes the shutter in a
+binary code during one exposure, so the blur of a moving target stays invertible. Here
+the panel is the shutter. The camera sits open in bulb mode with the panel black, the
+board plays the code on the panel from its own clock, the panel goes black again and
+then the bulb closes. The curtains move in the dark, so every row of the sensor sees the
+same code and the 60D's 1/250 s curtain travel does not matter.
+
+The board switches the panel one of two ways. Invert sends the controller's one-byte
+invert command, which flips every pixel in the time the liquid crystal takes, 15 to
+35 ms by the datasheet. Frame write rewrites every pixel, 41 ms at the Uno's 8 MHz SPI
+clock, so chops under about 130 ms slip. Run both and the difference is what the faster
+switch buys. The photodiode on the board records the code the panel played, with the
+rise and fall of the cell in it, and the deblur uses that record in place of the sent
+code. The sketch holds the whole run to a 16 bit millisecond clock, so lead, code and tail
+together fit `FLUTTER_MAX_S`, 60 s.
+
+`flutter.py` designs the code: a seeded random search over 32 chop codes with 16 open,
+first and last open, for the highest minimum in the padded spectrum. Every machine
+designs the same code, `10001101101001011000001111010101`, which the manifest records by
+its text. A box of the same length scores 0 and that code 0.075. The Custom field takes
+any code of up to 64 chops.
+
+The Flutter tab builds the capture set. Chop ms sets the chop, Lead ms how long the panel
+stays black before the code so gphoto2 has opened the bulb, 2 s by default, and Tail ms
+how long it stays black after. Blur px gives the target speed to set for that much blur
+over the code. Tick the captures to take:
+
+| Capture | Panel | Camera | Target |
+| --- | --- | --- | --- |
+| coded | plays the code | bulb, dial on B | moving |
+| box | open for the code's length | bulb | moving |
+| leakage | black for the code's length | bulb | moving |
+| impulse | open | the Impulse shutter speed, dial on M | moving |
+| reference | open for the code's length | bulb, dial on B | stopped |
+| dark | black for the code's length | bulb, lens cap on | any |
+
+Run takes them in that order, Repeats times each, with a prompt at each change of dial,
+target or cap. Box and leakage keep the bulb timing of the coded frame, so the three
+frames collect the same stray light. Switch test plays the code with the photodiode and
+no camera, the way to measure the switching time before anything else.
+
+Each bulb frame lands with `<index>_<tag>_trace.json` beside it, which downloads as
+`<label>_<index>_<tag>.json`: the code, chop, lead and tail, `samples` as `[ms, adc]`
+pairs since the board's clock started, `adc_max`, and `start_ms` and `end_ms` for every
+switch including the final black, so the played code can be rebuilt from either the
+photodiode or the switch times. `play_s` and `bulb_s` in it and `shown_s` and `fired_s`
+in the manifest are the laptop's clock, so the lead covers whatever gphoto2 took to open
+the shutter.
+
+Bulb goes through one gphoto2 call so the USB session stays open: `--set-config bulb=1`,
+wait, `--set-config bulb=0`, then `--wait-event-and-download` for `BULB_DOWNLOAD_S`.
+`BULB_OPEN` and `BULB_CLOSE` in `config.py` hold the two settings. If the 60D refuses
+`bulb`, set them to `eosremoterelease=Immediate` and `eosremoterelease=Release Full`. The
+server checks the shutter speed reads `bulb` before each run of bulb frames and says to
+turn the dial to B when it does not. Two things to check on the first run: that the bulb
+opens and closes on those settings, and that Invert takes the glass all the way to white
+and back, which the Switch test's trace shows.
+
+The deblur is not in the repository yet. It is regularised least squares along the motion
+with the played code, scored by MSE against the averaged reference frames.
 
 ## Geometry
 
@@ -293,9 +501,10 @@ time. Measured on a CH340 Uno: 95 ms for the open disc, white, black and the sca
 for a one pixel checkerboard, the worst case. `python display.py` prints the serial cost
 of every pattern: 8 ms for the open disc and under 15 ms for every named pattern at
 500 kbaud.
-The cell then takes its own response time to settle. Measure that with a photodiode on
-the panel while `show.py` toggles `white` and `black`, or with the `fill()` call on the
-arduino backend, which sends one command instead of a frame. That number, with the 60D's
-shutter lag, decides whether a flutter shutter code fits inside one exposure. The 60D's
-remote jack is the 2.5 mm E3 type, which an Arduino pin can drive through an optocoupler
-when the flutter shutter needs tighter timing than USB gives.
+The cell then takes its own response time to settle. The Switch test on the Flutter tab
+measures it: the board flips the panel with the invert command, three SPI bytes, and the
+photodiode trace shows the 10 to 90 percent rise and fall. That number sets the shortest
+useful chop. The flutter shutter needs no shutter timing from the laptop, since the panel
+is the shutter and the lead time covers the bulb opening. The 60D's remote jack is the
+2.5 mm E3 type, which an Arduino pin can drive through an optocoupler if a run ever needs
+the bulb to open on the board's clock too.

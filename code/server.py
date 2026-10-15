@@ -30,7 +30,19 @@ Endpoints:
   POST /capture                {"label": "x"}  one frame of the current pattern into a session
   POST /sequence               {"patterns": [...] or "sequence": "pair", "label": "700mm",
                                 "settle": 0.3, "diameter_mm": 27.8}  starts the job; a GIF in
-                                the list becomes one frame per GIF frame
+                                the list becomes one frame per GIF frame. An entry can be a
+                                step object instead of a name: {"pattern": "white", "tag":
+                                "card_open", "prompt": "Fit the open card", "camera":
+                                {"shutterspeed": "1/250"}, "diameter_mm": 8.9, "capture": true}
+                                pauses with the prompt until POST /sequence/go, sets the
+                                camera, then shows and fires. {"code": "1011...", "chop_ms":
+                                100, "lead_ms": 2000, "tail_ms": 500, "sample_ms": 5, "method":
+                                "invert", "tag": "coded"} is a flutter shutter step: the
+                                panel plays the code while the camera sits open in bulb, and
+                                the trace lands beside the frame. {"prompt": "..."} alone
+                                pauses and captures nothing
+  POST /sequence/go            let a paused job carry on
+  POST /sequence/stop          stop the running job after the current step
   GET  /sequence/<session>     manifest so far, with "done"
   GET  /files/<session>/<name> download a captured file
 
@@ -48,6 +60,7 @@ from datetime import datetime
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import config as cfg
+import flutter
 import patterns
 from camera import CameraError, add_dngs, open_camera
 from display import open_display
@@ -60,9 +73,15 @@ state = {
     "display": None, "camera": None, "live": None, "live_wanted": False,
     "pattern": None, "diameter_mm": None, "image_scale": 1.0, "rotation_deg": 0.0, "shown_at": None,
     "last_preview": None, "last_file": None, "capture_count": 0,
-    "job": {"running": False, "session": None, "index": 0, "total": 0, "error": None},
+    "job": {"running": False, "session": None, "index": 0, "total": 0, "error": None, "waiting": None},
 }
 manifests = {}
+go_event = threading.Event()        # /sequence/go sets it; a paused job waits on it
+stop_event = threading.Event()      # /sequence/stop sets it; the job checks it between steps and while paused
+
+
+class Stopped(Exception):
+    pass
 play_lock = threading.Lock()        # orders starting and stopping playback; never take it while holding lock
 play = {"thread": None, "stop": None, "name": None, "diameter_mm": None, "image_scale": 1.0, "rotation_deg": 0.0, "speed": 1.0, "error": None}
 
@@ -179,14 +198,8 @@ def session_dir(label):
     return d
 
 
-def do_capture(stem, keep_live_paused=False):
-    """fire the camera, write the preview JPEG beside the frame, return the files"""
-    was = live_pause()
-    try:
-        files = state["camera"].capture(stem)
-    finally:
-        if not keep_live_paused:
-            live_resume(was)
+def note_capture(stem, files):
+    """write the preview JPEG beside a new frame and record it as the last one taken"""
     primary = files[0]
     jpeg = next((f for f in files if f.suffix.lower() in (".jpg", ".jpeg")), primary)
     preview = stem.parent / f"{stem.name}_preview.jpg"
@@ -197,34 +210,129 @@ def do_capture(stem, keep_live_paused=False):
         print(f"preview of {primary.name} failed: {e}")
     state["last_file"] = primary
     state["capture_count"] += 1
+
+
+def do_capture(stem, keep_live_paused=False):
+    """fire the camera, write the preview JPEG beside the frame, return the files"""
+    was = live_pause()
+    try:
+        files = state["camera"].capture(stem)
+    finally:
+        if not keep_live_paused:
+            live_resume(was)
+    note_capture(stem, files)
     return files
 
 
-def run_sequence(names, d, settle, diameter_mm, image_scale, rotation_deg):
-    """show, settle, capture for each name; the timing goes in the manifest"""
+def check_stop():
+    if stop_event.is_set():
+        raise Stopped("stopped by the user")
+
+
+def wait_for_go(prompt):
+    """pause the job with the prompt on show until /sequence/go, or raise Stopped"""
+    job = state["job"]
+    go_event.clear()
+    job["waiting"] = prompt
+    print(f"waiting: {prompt}")
+    try:
+        while not go_event.wait(0.2):
+            check_stop()
+    finally:
+        job["waiting"] = None
+
+
+def still_step(i, step, d, t0, settle, diameter_mm, image_scale, rotation_deg):
+    """show the pattern, settle, fire; the frame for the manifest"""
+    name = step["pattern"]
+    tag = step.get("tag") or patterns.tag(name)
+    if step.get("camera"):
+        state["camera"].configure({k: str(v) for k, v in step["camera"].items()})
+    t_shown = show(name, step.get("diameter_mm") or diameter_mm, image_scale=image_scale, rotation_deg=rotation_deg)
+    time.sleep(settle)
+    files, t_fire = [], None
+    if step.get("capture", True):
+        t_fire = time.monotonic()
+        files = do_capture(d / f"{i:02d}_{tag}", keep_live_paused=True)
+    t_done = time.monotonic()
+    state["display"].last.save(d / f"{i:02d}_{tag}_panel.png")
+    return {
+        "index": i, "pattern": name, "tag": tag, "kind": "still",
+        "file": files[0].name if files else None, "files": [f.name for f in files],
+        "shown_s": round(t_shown - t0, 4), "fired_s": None if t_fire is None else round(t_fire - t0, 4),
+        "downloaded_s": round(t_done - t0, 4),
+    }
+
+
+def bulb_step(i, step, d, t0, check_camera):
+    """the panel plays the code while the camera sits open in bulb mode. The sketch's trace
+    lands beside the frame as <index>_<tag>_trace.json and in the frame's file list"""
+    tag = step["tag"]
+    code = flutter.parse(step["code"])
+    display, camera = state["display"], state["camera"]
+    capture = step.get("capture", True)
+    if capture and check_camera:
+        camera.ensure_bulb()
+    total_s = flutter.total_ms(len(code), step["chop_ms"], step["lead_ms"], step["tail_ms"]) / 1000
+    show("black")
+    t_play = display.play_code(code, step["chop_ms"], step["lead_ms"], step["tail_ms"], step["sample_ms"], step["method"])
+    job, t_fire, stem = None, None, d / f"{i:02d}_{tag}"
+    if capture:
+        job = camera.bulb_start(stem, total_s)
+        t_fire = time.monotonic()
+    try:
+        trace = display.read_play()
+    finally:
+        files = job.wait() if job else []
+    t_done = time.monotonic()
+    if files:
+        note_capture(stem, files)
+    trace.update({
+        "code": flutter.to_text(code), "chop_ms": step["chop_ms"], "lead_ms": step["lead_ms"],
+        "tail_ms": step["tail_ms"], "sample_ms": step["sample_ms"], "method": step["method"],
+        "play_s": round(t_play - t0, 4), "bulb_s": None if t_fire is None else round(t_fire - t0, 4),
+        "bulb_wait_s": total_s if capture else None,
+    })
+    trace_path = d / f"{i:02d}_{tag}_trace.json"
+    trace_path.write_text(json.dumps(trace))
+    display.last.save(d / f"{i:02d}_{tag}_panel.png")
+    return {
+        "index": i, "pattern": f"code {trace['code']}", "tag": tag, "kind": "bulb",
+        "code": trace["code"], "chop_ms": step["chop_ms"], "method": step["method"],
+        "file": files[0].name if files else None, "files": [f.name for f in files] + [trace_path.name],
+        "shown_s": round(t_play - t0, 4), "fired_s": None if t_fire is None else round(t_fire - t0, 4),
+        "downloaded_s": round(t_done - t0, 4),
+    }
+
+
+def run_sequence(steps, d, settle, diameter_mm, image_scale, rotation_deg):
+    """one step after another; the timing goes in the manifest"""
     job = state["job"]
     manifest = manifests[d.name]
     t0 = time.monotonic()
     with lock:
         was_live = live_pause()      # one pause for the whole sequence keeps the frame spacing tight
         try:
-            for i, name in enumerate(names):
+            prev_bulb = False
+            for i, step in enumerate(steps):
                 job["index"] = i
-                tag = patterns.tag(name)
-                t_shown = show(name, diameter_mm, image_scale=image_scale, rotation_deg=rotation_deg)
-                time.sleep(settle)
-                t_fire = time.monotonic()
-                stem = d / f"{i:02d}_{tag}"
-                files = do_capture(stem, keep_live_paused=True)
-                t_done = time.monotonic()
-                state["display"].last.save(d / f"{i:02d}_{tag}_panel.png")
-                manifest["frames"].append({
-                    "index": i, "pattern": name, "tag": tag, "file": files[0].name,
-                    "files": [f.name for f in files],
-                    "shown_s": round(t_shown - t0, 4), "fired_s": round(t_fire - t0, 4),
-                    "downloaded_s": round(t_done - t0, 4),
-                })
+                check_stop()
+                if step.get("prompt"):
+                    wait_for_go(step["prompt"])
+                if "code" in step:
+                    # a prompt or a still step may have moved the mode dial, so ask the body again
+                    frame = bulb_step(i, step, d, t0, check_camera=not prev_bulb or bool(step.get("prompt")))
+                    prev_bulb = True
+                elif "pattern" in step:
+                    frame = still_step(i, step, d, t0, settle, diameter_mm, image_scale, rotation_deg)
+                    prev_bulb = False
+                else:
+                    continue
+                manifest["frames"].append(frame)
                 (d / "manifest.json").write_text(json.dumps(manifest, indent=2))
+        except Stopped as e:
+            job["error"] = manifest["error"] = str(e)
+            manifest["stopped"] = True
         except Exception as e:
             job["error"] = str(e)
             manifest["error"] = str(e)
@@ -232,8 +340,52 @@ def run_sequence(names, d, settle, diameter_mm, image_scale, rotation_deg):
             add_session_dngs(manifest, d)
             manifest["done"] = True
             job["running"] = False
+            job["waiting"] = None
             (d / "manifest.json").write_text(json.dumps(manifest, indent=2))
             live_resume(was_live)
+
+
+def normalise_steps(requested):
+    """step dicts from a list of names and step objects; ValueError or KeyError on a bad one"""
+    steps = []
+    for s in requested:
+        if isinstance(s, str):
+            s = {"pattern": s}
+        elif not isinstance(s, dict):
+            raise ValueError("each step is a pattern name or an object")
+        s = dict(s)
+        if s.get("code") is not None:
+            code = flutter.parse(s["code"])
+            s["code"] = flutter.to_text(code)
+            for k, default in (("chop_ms", cfg.FLUTTER_CHOP_MS), ("lead_ms", cfg.FLUTTER_LEAD_MS),
+                               ("tail_ms", cfg.FLUTTER_TAIL_MS), ("sample_ms", cfg.FLUTTER_SAMPLE_MS)):
+                try:
+                    s[k] = int(s.get(k, default))
+                except (TypeError, ValueError):
+                    raise ValueError(f"{k} must be a whole number of ms")
+            flutter.check_timing(len(code), s["chop_ms"], s["lead_ms"], s["tail_ms"])
+            if s["sample_ms"] < 0:
+                raise ValueError("sample_ms is 0 or more")
+            s["method"] = s.get("method") or "invert"
+            if s["method"] not in ("invert", "fill"):
+                raise ValueError("method is invert or fill")
+            s["tag"] = str(s.get("tag") or "code")
+            steps.append(s)
+        elif s.get("pattern"):
+            name = str(s["pattern"])
+            patterns.build(name)
+            if s.get("diameter_mm") is not None and not float(s["diameter_mm"]) > 0:
+                raise ValueError("diameter_mm must be above 0")
+            for k, frame in enumerate(patterns.expand(name)):
+                t = dict(s, pattern=frame)
+                if k:
+                    t.pop("prompt", None)
+                steps.append(t)
+        elif s.get("prompt"):
+            steps.append({"prompt": str(s["prompt"])})
+        else:
+            raise ValueError("a step needs a pattern, a code or a prompt")
+    return steps
 
 
 def add_session_dngs(manifest, d):
@@ -247,7 +399,7 @@ def add_session_dngs(manifest, d):
         print(f"no DNG for {d.name}: {e}")
 
 
-def start_sequence(names, label, settle, diameter_mm, image_scale=1.0, rotation_deg=0.0):
+def start_sequence(steps, label, settle, diameter_mm, image_scale=1.0, rotation_deg=0.0):
     job = state["job"]
     if job["running"]:
         raise RuntimeError(f"sequence {job['session']} still running")
@@ -256,11 +408,15 @@ def start_sequence(names, label, settle, diameter_mm, image_scale=1.0, rotation_
         "label": label, "session": d.name, "started": datetime.now().isoformat(timespec="seconds"),
         "display": state["display"].name, "camera": state["camera"].name,
         "diameter_mm": diameter_mm or cfg.PUPIL_MM, "image_scale": image_scale, "rotation_deg": rotation_deg, "pitch_mm": cfg.PANEL_PITCH_MM,
-        "invert": cfg.PANEL_INVERT, "settle_s": settle, "patterns": names,
+        "invert": cfg.PANEL_INVERT, "settle_s": settle,
+        "patterns": [s.get("pattern") or (f"code {s['code']}" if "code" in s else None) for s in steps],
+        "steps": steps,
         "frames": [], "done": False, "error": None,
     }
-    job.update(running=True, session=d.name, index=0, total=len(names), error=None)
-    threading.Thread(target=run_sequence, args=(names, d, settle, diameter_mm, image_scale, rotation_deg),
+    stop_event.clear()
+    go_event.clear()
+    job.update(running=True, session=d.name, index=0, total=len(steps), error=None, waiting=None)
+    threading.Thread(target=run_sequence, args=(steps, d, settle, diameter_mm, image_scale, rotation_deg),
                      daemon=True).start()
     return d.name
 
@@ -478,13 +634,10 @@ def sequence():
     requested = data.get("patterns") or cfg.SEQUENCES.get(data.get("sequence", ""))
     if not requested:
         return jsonify({"error": f"give patterns or one of {list(cfg.SEQUENCES)}"}), 400
-    names = []
-    for n in requested:
-        try:
-            patterns.build(n)
-            names += patterns.expand(n)
-        except (KeyError, FileNotFoundError, ValueError, OSError) as e:
-            return jsonify({"error": e.args[0] if isinstance(e, KeyError) else str(e)}), 400
+    try:
+        steps = normalise_steps(requested)
+    except (KeyError, FileNotFoundError, ValueError, OSError) as e:
+        return jsonify({"error": e.args[0] if isinstance(e, KeyError) else str(e)}), 400
     label = data.get("label", "seq")
     settle = float(data.get("settle", cfg.SETTLE_S))
     try:
@@ -494,10 +647,28 @@ def sequence():
     with play_lock:
         stop_play()
         try:
-            session = start_sequence(names, label, settle, data.get("diameter_mm"), image_scale, rotation_deg)
+            session = start_sequence(steps, label, settle, data.get("diameter_mm"), image_scale, rotation_deg)
         except RuntimeError as e:
             return jsonify({"error": str(e)}), 409
-    return jsonify({"session": session, "total": len(names)})
+    return jsonify({"session": session, "total": len(steps)})
+
+
+@app.route("/sequence/go", methods=["POST"])
+def sequence_go():
+    job = state["job"]
+    if not job["running"] or not job["waiting"]:
+        return jsonify({"error": "no job is waiting"}), 409
+    go_event.set()
+    return jsonify({"session": job["session"]})
+
+
+@app.route("/sequence/stop", methods=["POST"])
+def sequence_stop():
+    job = state["job"]
+    if not job["running"]:
+        return jsonify({"error": "no job is running"}), 409
+    stop_event.set()
+    return jsonify({"session": job["session"], "note": "stops after the current step"})
 
 
 @app.route("/sequence/<session>")

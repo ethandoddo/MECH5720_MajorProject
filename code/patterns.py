@@ -7,7 +7,8 @@ inverse when PANEL_INVERT is set.
 
 A pattern name is a built-in name, a mask file name, or a path to a PNG or GIF. Frame k
 of a GIF is "<path>.gif#k", and expand() turns a GIF into one name per frame, so a
-sequence takes one photo of each frame.
+sequence takes one photo of each frame. "scan4" is tile 4 of the SCAN_N x SCAN_N scan
+and "scan5_12" is tile 12 of a 5 x 5 scan, for any size.
 """
 import re
 from pathlib import Path
@@ -217,6 +218,12 @@ def _build(name, diameter_mm, image_scale):
         return black()
     if name.startswith("scan") and name[4:].isdigit():
         return subaperture(int(name[4:]), diameter_mm=diameter_mm)
+    m = re.fullmatch(r"scan(\d+)_(\d+)", name)
+    if m:
+        n, i = int(m.group(1)), int(m.group(2))
+        if n < 1 or i >= n * n:
+            raise KeyError(f"{name!r}: a {n} x {n} scan has tiles 0 to {n * n - 1}")
+        return subaperture(i, n, diameter_mm)
     if is_image(name):
         base, frame = split_frame(name)
         if base.lower().endswith(".gif"):

@@ -6,10 +6,17 @@
           view can show at once
   dummy   writes whatever the display is showing as a PNG, so a whole sequence can run
           on a laptop with nothing plugged in
+
+bulb_start(stem, seconds) opens the shutter in bulb mode for about that long and returns a
+job whose wait() gives the files, so the server can read the panel's flutter trace while
+the exposure runs. The 60D puts bulb on the mode dial, so ensure_bulb() checks for it.
 """
+import math
 import re
 import shutil
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 import config as cfg
@@ -29,6 +36,14 @@ class Camera:
         """stem is a path without extension; returns the files written, the raw one first"""
         raise NotImplementedError
 
+    def bulb_start(self, stem, seconds):
+        """open the shutter for about `seconds` and download; returns a job with wait()"""
+        raise NotImplementedError
+
+    def ensure_bulb(self):
+        """raise CameraError unless the body is ready for a bulb exposure"""
+        pass
+
     def configure(self, settings):
         return {}
 
@@ -38,6 +53,30 @@ class Camera:
 
     def describe(self):
         return {"camera": self.name}
+
+
+class ThreadJob:
+    """a capture that runs in its own thread; wait() returns the files or raises"""
+
+    def __init__(self, fn):
+        self.files = None
+        self.error = None
+        self._thread = threading.Thread(target=self._run, args=(fn,), daemon=True)
+        self._thread.start()
+
+    def _run(self, fn):
+        try:
+            self.files = fn()
+        except Exception as e:
+            self.error = e
+
+    def wait(self, timeout=None):
+        self._thread.join(timeout)
+        if self._thread.is_alive():
+            raise CameraError("the bulb exposure did not finish")
+        if self.error:
+            raise self.error if isinstance(self.error, CameraError) else CameraError(str(self.error))
+        return self.files
 
 
 class DummyCamera(Camera):
@@ -55,6 +94,12 @@ class DummyCamera(Camera):
             raise CameraError("nothing has been shown yet")
         img.save(path)
         return [path]
+
+    def bulb_start(self, stem, seconds):
+        def run():
+            time.sleep(seconds)
+            return self.capture(stem)
+        return ThreadJob(run)
 
     def configure(self, settings):
         self.settings.update(settings)
@@ -123,10 +168,51 @@ class GPhotoCamera(Camera):
         # %C is the camera's own extension, so RAW+JPEG on the body gives two files
         template = str(stem) + ".%C"
         self._run("--capture-image-and-download", "--filename", template, "--force-overwrite")
+        return self._written(stem)
+
+    @staticmethod
+    def _written(stem):
         written = [p for p in stem.parent.glob(stem.name + ".*") if not p.name.endswith("_preview.jpg")]
         if not written:
             raise CameraError("gphoto2 reported success but no file appeared")
         return sorted(written, key=lambda p: (p.suffix.lower() not in RAW_EXT, p.name))
+
+    def ensure_bulb(self):
+        """the 60D has bulb on the mode dial, so this asks the body and tries to set it, and
+        says to turn the dial when both fail"""
+        text = self._run("--get-config", "shutterspeed", timeout=20)
+        m = re.search(r"^Current:\s*(.*)$", text, re.M)
+        current = m.group(1).strip() if m else ""
+        if current.lower() == "bulb":
+            return
+        try:
+            self._run("--set-config", "shutterspeed=bulb", timeout=20)
+            return
+        except CameraError:
+            pass
+        raise CameraError(f"the shutter speed is {current!r}, not bulb: turn the mode dial to B")
+
+    def bulb_start(self, stem, seconds):
+        """open the bulb with BULB_OPEN, hold it about `seconds`, close it with BULB_CLOSE and
+        download the frame, all in one gphoto2 call so the USB session stays open throughout"""
+        stem = Path(stem)
+        stem.parent.mkdir(parents=True, exist_ok=True)
+        template = str(stem) + ".%C"
+        args = [self.bin, "--set-config", cfg.BULB_OPEN, "--wait-event", f"{int(math.ceil(seconds))}s",
+                "--set-config", cfg.BULB_CLOSE, "--wait-event-and-download", f"{int(cfg.BULB_DOWNLOAD_S)}s",
+                "--filename", template, "--force-overwrite"]
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        def run():
+            try:
+                out, err = proc.communicate(timeout=seconds + cfg.BULB_DOWNLOAD_S + cfg.CAPTURE_TIMEOUT_S)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                raise CameraError("gphoto2 did not return from the bulb exposure")
+            if proc.returncode != 0:
+                raise CameraError(err.strip() or out.strip() or f"gphoto2 exit {proc.returncode}")
+            return self._written(stem)
+        return ThreadJob(run)
 
 
 def to_dng(raw):

@@ -1,10 +1,15 @@
 """Camera view and control window for the aperture rig. Run this on the laptop while
 server.py is running there too. This is the main way to drive the rig.
 
-Three windows: what the DSLR sees, what the panel is showing, and the controls for
-patterns, camera settings, single frames and sequences. With Live view on, the camera
-view streams the EOS 60D's live view. Off, it shows the last frame the camera took.
-Live view pauses around every capture because one process owns the USB link.
+Four windows: what the DSLR sees, what the panel is showing, the controls for patterns,
+camera settings, single frames and sequences, and the experiments, one tab each for
+depth, refocus, bokeh and the flutter shutter. With Live view on, the camera view
+streams the EOS 60D's live view. Off, it shows the last frame the camera took. Live view
+pauses around every capture because one process owns the USB link.
+
+An experiment is a list of steps the server runs in order. A step with a prompt pauses
+the job with the prompt on show, for a card swap or the lens cap, until Continue. A
+flutter step plays a code on the panel while the camera sits open in bulb mode.
 
 PNG and GIF files come in through a file dialog. A GIF plays on the panel at a chosen
 speed, and in an image sequence each GIF frame gets its own photo. The server opens the
@@ -34,6 +39,9 @@ import OpenGL.GL as gl
 from imgui_bundle import imgui
 from imgui_bundle import portable_file_dialogs as pfd
 from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
+
+import config as cfg
+import flutter
 
 status_message = "Ready"
 status_color = (0.5, 0.7, 1.0, 1.0)
@@ -110,6 +118,12 @@ class Server:
 
     def start_sequence(self, body):
         return self.post("/sequence", body, timeout=30)
+
+    def go(self):
+        return self.post("/sequence/go", {}, timeout=10)
+
+    def stop_job(self):
+        return self.post("/sequence/stop", {}, timeout=10)
 
     def sequence(self, session):
         return self.get(f"/sequence/{session}", timeout=10).json()
@@ -393,13 +407,19 @@ def main():
         "patterns": [], "pattern_idx": 0, "diameter": 0.0, "png_path": "",
         "choices": {}, "choice_idx": {}, "label": "frame", "outdir": args.outdir,
         "sequences": {}, "seq_idx": 0, "settle": 0.3, "custom": "open levin nayar open",
-        "seq_session": None, "seq_collected": True, "seq_label": "",
+        "seq_session": None, "seq_collected": True, "seq_label": "", "seq_outdir": args.outdir,
         "speed": 1.0, "image_pct": 100.0, "rotation": 0.0, "resize_at": 0.0, "images": [], "image_counts": [], "image_sel": -1,
         "dialog": None, "dialog_target": None, "dialog_dir": os.path.expanduser("~"),
+        # the Experiments window
+        "repeats": 1, "distance": 1000, "bokeh_path": "",
+        "fl_mode": 0, "fl_designed": flutter.design(), "fl_custom": "", "fl_chop": cfg.FLUTTER_CHOP_MS,
+        "fl_lead": cfg.FLUTTER_LEAD_MS, "fl_tail": cfg.FLUTTER_TAIL_MS, "fl_method": 0, "fl_photodiode": True,
+        "fl_blur": 100, "fl_impulse": cfg.IMPULSE_SHUTTER,
+        "fl_take": {"coded": True, "box": True, "leakage": True, "impulse": True, "reference": True, "dark": True},
     }
 
     def open_dialog(target):
-        """target "single" fills the image field, "images" appends to the sequence list"""
+        """target "single" fills the image field, "images" appends to the sequence list, "bokeh" the shape"""
         if ui["dialog"] is not None:
             return
         try:
@@ -470,6 +490,236 @@ def main():
         st = poller.status
         return bool(st and st["job"]["running"])
 
+    # ---- the Experiments window: each tab turns its settings into a list of steps for the server
+
+    def go():
+        try:
+            server.go()
+            set_status("Carrying on", OK)
+        except Exception as e:
+            set_status(f"Continue error: {e}", BAD)
+
+    def stop_job():
+        try:
+            server.stop_job()
+            set_status("Stopping after this step", BUSY)
+        except Exception as e:
+            set_status(f"Stop error: {e}", BAD)
+
+    def start_steps(steps, label, experiment):
+        """run the steps as a sequence with the settle, pupil, image size and rotation from Controls;
+        the frames download to <outdir>/<experiment>/"""
+        body = {"label": label, "patterns": steps, "settle": ui["settle"], "image_scale": ui["image_pct"] / 100,
+                "rotation_deg": ui["rotation"]}
+        if ui["diameter"]:
+            body["diameter_mm"] = ui["diameter"]
+        try:
+            info = server.start_sequence(body)
+            ui["seq_session"] = info["session"]
+            ui["seq_label"] = label
+            ui["seq_outdir"] = os.path.join(ui["outdir"], experiment)
+            ui["seq_collected"] = False
+            set_status(f"Running {label}: {info['total']} steps...", BUSY)
+        except Exception as e:
+            set_status(f"Sequence error: {e}", BAD)
+
+    def repeat(steps):
+        return [dict(s) if isinstance(s, dict) else s for _ in range(ui["repeats"]) for s in steps]
+
+    def card(name, what=None):
+        """one frame through a hand-fitted card with the panel white, after a pause to fit it"""
+        return {"pattern": "white", "tag": f"card_{name}", "prompt": f"Fit the {what or name} card in front of the panel"}
+
+    def depth_tab():
+        a, b = cfg.PAIR
+        d = ui["distance"]
+        if imgui.button("PSF set"):
+            in_thread(start_steps, repeat(["open", a, b, "levin", "black"]), f"depth{d}_psf", "depth")
+        imgui.same_line()
+        if imgui.button("Pair"):
+            in_thread(start_steps, repeat(["open", a, b, "open"]), f"depth{d}_pair", "depth")
+        imgui.same_line()
+        if imgui.button("Singles"):
+            in_thread(start_steps, repeat([a, a, b, b, "levin", "levin"]), f"depth{d}_single", "depth")
+        imgui.same_line()
+        if imgui.button("Card pair"):
+            in_thread(start_steps, repeat([card("open"), card(a, "Zhou A"), card(b, "Zhou B"), card("open")]),
+                      f"depth{d}_cardpair", "depth")
+        imgui.text_wrapped(f"PSF set: open, {a}, {b}, levin and black, for a point source at the distance above. "
+                           f"Pair: open, {a}, {b}, open, for a textured target. "
+                           f"Singles: each coded pattern twice, so one pattern gets the pair's exposure. "
+                           f"Card pair: the same four frames through hand-fitted cards with the panel white. "
+                           f"The job pauses before each card.")
+
+    def refocus_tab():
+        d = ui["distance"]
+        n = cfg.SCAN_N
+        f = cfg.REFOCUS_F_NUMBER
+        ftag = f"f{f:g}".replace(".", "p")
+        if imgui.button(f"Scan {n}x{n}"):
+            in_thread(start_steps, repeat(["open"] + [f"scan{i}" for i in range(n * n)] + ["black", "open"]),
+                      f"refocus{d}_scan{n}", "refocus")
+        imgui.same_line()
+        if imgui.button("Scan 5x5"):
+            in_thread(start_steps, repeat(["open"] + [f"scan5_{i}" for i in range(25)] + ["black", "open"]),
+                      f"refocus{d}_scan5", "refocus")
+        imgui.same_line()
+        if imgui.button(f"f/{f:g} frame"):
+            in_thread(start_steps, repeat([{"pattern": "open", "diameter_mm": cfg.FOCAL_MM / f, "tag": ftag}]),
+                      f"refocus{d}_{ftag}", "refocus")
+        imgui.same_line()
+        if imgui.button("Lens focus"):
+            in_thread(start_steps, repeat([{"pattern": "open", "tag": "lensfocus",
+                                            "prompt": f"Focus the lens on the {d} mm target, then refocus it after the frame"}]),
+                      f"refocus{d}_lensfocus", "refocus")
+        imgui.text_wrapped(f"Scan: open, every tile, black and open. The 5x5 scan takes 28 frames. "
+                           f"f/{f:g} frame: one open disc {cfg.FOCAL_MM / f:.1f} mm wide, the depth of field the "
+                           f"{n}x{n} refocus reaches with no scan. Lens focus: the in-focus reference for SSIM, "
+                           f"after a pause to focus the lens by hand.")
+
+    def bokeh_tab():
+        changed, val = imgui.input_text("Shape", ui["bokeh_path"])
+        if changed:
+            ui["bokeh_path"] = val
+        if imgui.button("Browse...##bokeh"):
+            open_dialog("bokeh")
+        stem = os.path.splitext(os.path.basename(ui["bokeh_path"]))[0] or "shape"
+        imgui.same_line()
+        imgui.begin_disabled(not ui["bokeh_path"])
+        if imgui.button("Capture"):
+            in_thread(start_steps, repeat(["open", ui["bokeh_path"], "open"]), f"bokeh_{stem}", "bokeh")
+        imgui.end_disabled()
+        imgui.same_line()
+        if imgui.button("Card shape"):
+            in_thread(start_steps, repeat([card("open"), card("shape", stem), card("open")]), f"bokeh_{stem}_card", "bokeh")
+        imgui.text_wrapped("Capture: open, the shape, open, at the Image size and Rotation set in Controls. "
+                           "A GIF gives one frame per GIF frame. Card shape: the same through a laser-cut card, "
+                           "with a pause before each card.")
+
+    def flutter_code():
+        """the code the Flutter tab has chosen, or None and the reason"""
+        if ui["fl_mode"] == 0:
+            return ui["fl_designed"], None
+        try:
+            return flutter.parse(ui["fl_custom"]), None
+        except ValueError as e:
+            return None, str(e)
+
+    def flutter_steps(code):
+        """the capture set in the order that needs the fewest trips to the camera: the moving
+        target through the bulb frames, the impulse frames on M, the stationary reference, the darks"""
+        n = len(code)
+        chop, lead, tail = ui["fl_chop"], ui["fl_lead"], ui["fl_tail"]
+        sample = cfg.FLUTTER_SAMPLE_MS if ui["fl_photodiode"] else 0
+        method = "invert" if ui["fl_method"] == 0 else "fill"
+        take, r = ui["fl_take"], ui["repeats"]
+        speed = flutter.target_speed(ui["fl_blur"], n, chop)
+
+        def bulb(tag, bits, prompt=None):
+            s = {"code": flutter.to_text(bits), "chop_ms": chop, "lead_ms": lead, "tail_ms": tail,
+                 "sample_ms": sample, "method": method, "tag": tag}
+            if prompt:
+                s["prompt"] = prompt
+            return s
+
+        steps = []
+        moving = [k for k in ("coded", "box", "leakage") if take[k]]
+        bits = {"coded": code, "box": flutter.box(n), "leakage": flutter.shut(n)}
+        for j in range(r):
+            for k in moving:
+                prompt = None
+                if not steps:
+                    prompt = f"Turn the mode dial to B and set the target moving at {speed:.1f} px/s"
+                steps.append(bulb(k, bits[k], prompt))
+        if take["impulse"]:
+            for j in range(r):
+                s = {"pattern": "white", "tag": "impulse", "camera": {"shutterspeed": ui["fl_impulse"]}}
+                if j == 0:
+                    s["prompt"] = (f"Turn the mode dial to M for the {ui['fl_impulse']} s impulse frames. "
+                                   f"The target keeps moving at {speed:.1f} px/s")
+                steps.append(s)
+        if take["reference"]:
+            for j in range(r):
+                steps.append(bulb("reference", flutter.box(n), "Stop the target and turn the mode dial to B" if j == 0 else None))
+        if take["dark"]:
+            for j in range(r):
+                steps.append(bulb("dark", flutter.shut(n), "Put the lens cap on, with the mode dial on B" if j == 0 else None))
+            steps.append({"prompt": "Take the lens cap off"})
+        return steps
+
+    def flutter_tab():
+        if imgui.radio_button(f"Designed {cfg.FLUTTER_CHOPS} chops", ui["fl_mode"] == 0):
+            ui["fl_mode"] = 0
+        imgui.same_line()
+        if imgui.radio_button("Custom", ui["fl_mode"] == 1):
+            ui["fl_mode"] = 1
+        if ui["fl_mode"] == 1:
+            changed, val = imgui.input_text("0s and 1s", ui["fl_custom"])
+            if changed:
+                ui["fl_custom"] = val
+        code, err = flutter_code()
+        if code:
+            imgui.text_wrapped(f"{flutter.to_text(code)}   {len(code)} chops, {sum(code)} open, score {flutter.score(code):.3f}")
+        else:
+            imgui.text_colored(BAD, err)
+        for key, label, step, big in (("fl_chop", "Chop ms", 5, 50), ("fl_lead", "Lead ms", 100, 500), ("fl_tail", "Tail ms", 100, 500)):
+            changed, val = imgui.input_int(label, ui[key], step, big)
+            if changed:
+                ui[key] = max(1 if key == "fl_chop" else 0, min(65535, val))
+        if imgui.radio_button("Invert", ui["fl_method"] == 0):
+            ui["fl_method"] = 0
+        imgui.same_line()
+        if imgui.radio_button("Frame write", ui["fl_method"] == 1):
+            ui["fl_method"] = 1
+        imgui.same_line()
+        changed, val = imgui.checkbox("Photodiode on the board", ui["fl_photodiode"])
+        if changed:
+            ui["fl_photodiode"] = val
+        changed, val = imgui.input_int("Blur px", ui["fl_blur"], 10, 50)
+        if changed:
+            ui["fl_blur"] = max(1, val)
+        opts = (ui["choices"].get("shutterspeed") or {}).get("choices") or []
+        if opts:
+            idx = opts.index(ui["fl_impulse"]) if ui["fl_impulse"] in opts else 0
+            changed, idx = imgui.combo("Impulse shutter", idx, opts)
+            if changed:
+                ui["fl_impulse"] = opts[idx]
+        else:
+            changed, val = imgui.input_text("Impulse shutter", ui["fl_impulse"])
+            if changed:
+                ui["fl_impulse"] = val
+        if code:
+            n = len(code)
+            total = flutter.total_ms(n, ui["fl_chop"], ui["fl_lead"], ui["fl_tail"]) / 1000
+            imgui.text(f"Code {n * ui['fl_chop'] / 1000:.2f} s, bulb about {total:.1f} s, "
+                       f"target {flutter.target_speed(ui['fl_blur'], n, ui['fl_chop']):.1f} px/s")
+            if total > cfg.FLUTTER_MAX_S:
+                imgui.text_colored(BAD, f"Over the {cfg.FLUTTER_MAX_S} s limit of the board's clock")
+        imgui.text("Take:")
+        for k in ("coded", "box", "leakage", "impulse", "reference", "dark"):
+            imgui.same_line()
+            changed, val = imgui.checkbox(k, ui["fl_take"][k])
+            if changed:
+                ui["fl_take"][k] = val
+        method = "invert" if ui["fl_method"] == 0 else "fill"
+        imgui.begin_disabled(code is None)
+        if imgui.button("Switch test") and code:
+            step = {"code": flutter.to_text(code), "chop_ms": ui["fl_chop"], "lead_ms": ui["fl_lead"], "tail_ms": ui["fl_tail"],
+                    "sample_ms": cfg.FLUTTER_SAMPLE_MS, "method": method, "tag": "switch", "capture": False}
+            in_thread(start_steps, [step], f"flutter_switch_{ui['fl_chop']}ms_{method}", "flutter")
+        imgui.same_line()
+        if imgui.button("Run") and code:
+            steps = flutter_steps(code)
+            if steps:
+                in_thread(start_steps, steps, f"flutter_{ui['fl_chop']}ms_{method}", "flutter")
+            else:
+                set_status("Tick at least one capture", BAD)
+        imgui.end_disabled()
+        imgui.text_wrapped("Switch test plays the code with the photodiode and no camera, to measure the switching "
+                           "time. Run takes the ticked captures Repeats times each: coded, box and leakage with the "
+                           "target moving and the dial on B, impulse on M, then the reference with the target stopped "
+                           "and the darks with the lens cap on. Each change is a pause with a prompt.")
+
     while not glfw.window_should_close(window):
         glfw.poll_events()
         if args.exit_after and time.time() - t_start > args.exit_after:
@@ -499,7 +749,7 @@ def main():
             job = status["job"]
             if job["session"] == ui["seq_session"] and not job["running"]:
                 ui["seq_collected"] = True
-                in_thread(download_sequence, server, ui["seq_session"], ui["outdir"], ui["seq_label"])
+                in_thread(download_sequence, server, ui["seq_session"], ui["seq_outdir"], ui["seq_label"])
 
         # the file dialog runs as its own process; collect its answer once it closes
         if ui["dialog"] is not None and ui["dialog"].ready(0):
@@ -509,14 +759,16 @@ def main():
                 ui["dialog_dir"] = os.path.dirname(picked[0])
                 if ui["dialog_target"] == "images":
                     add_images(picked)
+                elif ui["dialog_target"] == "bokeh":
+                    ui["bokeh_path"] = picked[0]
                 else:
                     ui["png_path"] = picked[0]
 
         impl.process_inputs()
         imgui.new_frame()
 
-        # --- Window 1: camera view ---
-        imgui.set_next_window_size((820, 640), imgui.Cond_.first_use_ever)
+        # --- Window 1: camera view, the smallest, since the experiments need the room ---
+        imgui.set_next_window_size((420, 330), imgui.Cond_.first_use_ever)
         imgui.set_next_window_pos((20, 20), imgui.Cond_.first_use_ever)
         imgui.begin("Camera View")
         if reader is not None and live_size:
@@ -534,8 +786,8 @@ def main():
         imgui.end()
 
         # --- Window 2: panel view ---
-        imgui.set_next_window_size((320, 500), imgui.Cond_.first_use_ever)
-        imgui.set_next_window_pos((860, 20), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_size((420, 370), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_pos((20, 370), imgui.Cond_.first_use_ever)
         imgui.begin("Aperture Panel")
         if status:
             rot = status.get("rotation_deg") or 0
@@ -549,8 +801,8 @@ def main():
         imgui.end()
 
         # --- Window 3: controls ---
-        imgui.set_next_window_size((380, 720), imgui.Cond_.first_use_ever)
-        imgui.set_next_window_pos((1200, 20), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_size((400, 720), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_pos((460, 20), imgui.Cond_.first_use_ever)
         imgui.begin("Controls")
 
         imgui.text("Server: ")
@@ -806,6 +1058,7 @@ def main():
                 info = server.start_sequence(body)
                 ui["seq_session"] = info["session"]
                 ui["seq_label"] = ui["label"]
+                ui["seq_outdir"] = ui["outdir"]
                 ui["seq_collected"] = False
                 set_status(f"Running {info['total']} frames...", BUSY)
             except Exception as e:
@@ -819,7 +1072,7 @@ def main():
         if status and status["job"]["running"]:
             job = status["job"]
             frac = (job["index"]) / max(1, job["total"])
-            imgui.progress_bar(frac, imgui.ImVec2(-1, 0), f"frame {job['index'] + 1} of {job['total']}")
+            imgui.progress_bar(frac, imgui.ImVec2(-1, 0), f"step {job['index'] + 1} of {job['total']}")
 
         imgui.spacing()
         imgui.separator()
@@ -829,6 +1082,42 @@ def main():
         if status and status.get("last_file"):
             imgui.text(f"Last frame: {status['last_file']}")
         imgui.text(f"UI {imgui.get_io().framerate:.0f} FPS")
+        imgui.end()
+
+        # --- Window 4: experiments ---
+        imgui.set_next_window_size((700, 720), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_pos((880, 20), imgui.Cond_.first_use_ever)
+        imgui.begin("Experiments")
+        job = status["job"] if status else None
+        if job and job["running"]:
+            if job.get("waiting"):
+                imgui.text_colored(BUSY, "Waiting for you:")
+                imgui.text_wrapped(job["waiting"])
+                if imgui.button("Continue"):
+                    in_thread(go)
+                imgui.same_line()
+            else:
+                imgui.progress_bar(job["index"] / max(1, job["total"]), imgui.ImVec2(-80, 0),
+                                   f"step {job['index'] + 1} of {job['total']}")
+                imgui.same_line()
+            if imgui.button("Stop"):
+                in_thread(stop_job)
+            imgui.separator()
+        imgui.begin_disabled(busy() or not connected)
+        changed, val = imgui.input_int("Repeats", ui["repeats"])
+        if changed:
+            ui["repeats"] = max(1, min(20, val))
+        changed, val = imgui.input_int("Target distance mm", ui["distance"], 50, 100)
+        if changed:
+            ui["distance"] = max(1, val)
+        imgui.text_disabled(f"Frames download to {ui['outdir']}/<experiment>/")
+        if imgui.begin_tab_bar("##experiments"):
+            for name, draw in (("Depth", depth_tab), ("Refocus", refocus_tab), ("Bokeh", bokeh_tab), ("Flutter", flutter_tab)):
+                if imgui.begin_tab_item(name)[0]:
+                    draw()
+                    imgui.end_tab_item()
+            imgui.end_tab_bar()
+        imgui.end_disabled()
         imgui.end()
 
         imgui.render()
