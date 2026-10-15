@@ -1,24 +1,28 @@
-"""Generate sprite animations as aperture masks in two tone sets.
+"""Generate sprite animations as aperture frames for the 128 x 160 panel.
 
 Link, Mario, the Knight (Realm of the Mad God) and a Terraria miner are written
 as character grids. Each animation is written in two variants:
 
-    binary   opaque black and transparent
-    grey     opaque black, opaque mid-grey (128, 128, 128) and transparent
+    binary   transparent sprite on an opaque black background
+    grey     the same, with some sprite regions at mid-grey (128, 128, 128)
+
+Every frame is a 128 x 160 portrait image (160 x 128 landscape for the Link
+attack). The drawn area of all frames in an animation is cropped to one shared
+box, scaled up as far as it fits and centred, so the animation does not jitter.
+The scale is the largest that fits, using nearest-neighbour sampling. Set
+INTEGER_SCALE to keep every sprite pixel the same size at the cost of margins.
 
 Grid letters record the original colour regions. In the binary variant every
-region is black. In the grey variant each animation maps its regions to black
-or grey (see ANIMATIONS). Other cells:
+region is transparent. In the grey variant each animation maps its regions to
+transparent ("k") or grey ("g"), the tonal negative of the earlier black and
+grey masks. Other cells:
 
-    .        transparent background
-    a-z      transparent cut-out inside the silhouette (eye, button, visor
-             slit); the letter is the original region, in lower case
+    .        background, black
+    a-z      cut-out inside the silhouette (eye, button, visor slit), black;
+             the letter is the original region, in lower case
 
-Canvas sizes are native to each sprite: 16 x 16 for the walk cycles (the
-Knight is drawn on 8 x 8 and upscaled 2x), 26 x 16 for the Link attack and
-33 x 26 for the Terraria miner. Outputs per animation and variant, in
-<variant>/<character>/: native PNGs, nearest-neighbour upscaled PNGs, and
-looping GIF and APNG animations. Run from any directory:
+Outputs per animation and variant, in <variant>/<character>/: one PNG per
+frame, a looping GIF and a looping APNG. Run from any directory:
 
     python3 make_sprites.py
 """
@@ -27,10 +31,13 @@ from pathlib import Path
 from PIL import Image
 
 OUT = Path(__file__).resolve().parent
-TARGET_PX = 320  # longest side of the upscaled outputs
+PORTRAIT = (128, 160)   # panel width, height
+LANDSCAPE = (160, 128)
+INTEGER_SCALE = False
 FRAME_MS = 250
 BLACK = (0, 0, 0, 255)
 GREY = (128, 128, 128, 255)
+CLEAR = (0, 0, 0, 0)
 
 # --- Link: 16 x 16, side view facing right. Frame 1 is the walk pose with the
 # legs together; frame 2 is the stride pose (Zelda Wiki, TLoZ Link Sprite 3).
@@ -259,39 +266,40 @@ TERRARIA_MINE = [
     ],
 ]
 
-# grey: region letter -> tone. "k" is black, "g" is grey. Regions left out
-# are transparent.
+# grey: region letter -> tone. "k" becomes transparent, "g" becomes grey. These
+# are the earlier black and grey regions, so the sprite is the negative of the
+# first masks.
 LINK_GREY = {
-    # hair, shield, sword and boots black; cap, tunic, face and arm grey
+    # hair, shield, sword and boots open; cap, tunic, face and arm grey
     "B": "k", "G": "g", "S": "g",
 }
 ANIMATIONS = [
     {
         "character": "link", "action": "walk", "frames": LINK_WALK,
-        "upscale": 1, "frame_ms": FRAME_MS, "grey": LINK_GREY,
+        "frame": PORTRAIT, "frame_ms": FRAME_MS, "grey": LINK_GREY,
     },
     {
         "character": "mario", "action": "walk", "frames": MARIO_WALK,
-        "upscale": 1, "frame_ms": 100,
-        # hair, sleeves, moustache and shoes black; cap, overalls, face and
+        "frame": PORTRAIT, "frame_ms": 100,
+        # hair, sleeves, moustache and shoes open; cap, overalls, face and
         # hands grey
         "grey": {"R": "g", "B": "k", "S": "g"},
     },
     {
         "character": "knight", "action": "walk", "frames": KNIGHT_WALK,
-        "upscale": 2, "frame_ms": FRAME_MS,
-        # helmet, arm, sword, body and feet black; visor, shield and belt
+        "frame": PORTRAIT, "frame_ms": FRAME_MS,
+        # helmet, arm, sword, body and feet open; visor, shield and belt
         # buckle grey
         "grey": {"G": "k", "W": "g", "K": "k", "S": "g"},
     },
     {
         "character": "link", "action": "attack", "frames": LINK_ATTACK,
-        "upscale": 1, "frame_ms": FRAME_MS, "grey": LINK_GREY,
+        "frame": LANDSCAPE, "frame_ms": FRAME_MS, "grey": LINK_GREY,
     },
     {
         "character": "terraria", "action": "mine", "frames": TERRARIA_MINE,
-        "upscale": 1, "frame_ms": FRAME_MS,
-        # outline, hair, pickaxe handle and boots black; skin, shirt, pants
+        "frame": PORTRAIT, "frame_ms": FRAME_MS,
+        # outline, hair, pickaxe handle and boots open; skin, shirt, pants
         # and pickaxe head grey
         "grey": {
             "K": "k", "H": "k", "J": "k", "R": "k", "T": "k", "B": "k",
@@ -300,25 +308,43 @@ ANIMATIONS = [
     },
 ]
 
-TONES = {"k": BLACK, "g": GREY}
+TONES = {"k": CLEAR, "g": GREY}
 
 
-def mask(rows, tone_of):
-    """One pixel per grid cell. tone_of maps a region letter to RGBA or None."""
-    img = Image.new("RGBA", (len(rows[0]), len(rows)), (0, 0, 0, 0))
-    for y, row in enumerate(rows):
+def drawn_box(frames):
+    """Bounding box (x0, y0, x1, y1) of every drawn cell across the frames."""
+    xs = [x for rows in frames for row in rows for x, ch in enumerate(row) if ch != "."]
+    ys = [y for rows in frames for y, row in enumerate(rows) for ch in row if ch != "."]
+    return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+
+
+def mask(rows, box, tone_of):
+    """One pixel per grid cell inside box. Background and cut-outs are black;
+    tone_of maps a region letter to its RGBA."""
+    x0, y0, x1, y1 = box
+    img = Image.new("RGBA", (x1 - x0, y1 - y0), BLACK)
+    for y in range(y0, y1):
+        row = rows[y]
         assert len(row) == len(rows[0]), f"ragged row {y}: {row!r}"
-        for x, ch in enumerate(row):
+        for x in range(x0, x1):
+            ch = row[x]
             if ch == "." or ch.islower():
                 continue
-            colour = tone_of(ch)
-            if colour:
-                img.putpixel((x, y), colour)
+            img.putpixel((x - x0, y - y0), tone_of(ch))
     return img
 
 
-def upscale(img, factor):
-    return img.resize((img.width * factor, img.height * factor), Image.NEAREST)
+def fit(img, frame):
+    """Scale img as large as the frame allows and centre it on black."""
+    fw, fh = frame
+    scale = min(fw / img.width, fh / img.height)
+    if INTEGER_SCALE:
+        scale = max(1, int(scale))
+    w = min(fw, round(img.width * scale))
+    h = min(fh, round(img.height * scale))
+    out = Image.new("RGBA", frame, BLACK)
+    out.paste(img.resize((w, h), Image.NEAREST), ((fw - w) // 2, (fh - h) // 2))
+    return out
 
 
 def gif_frame(img):
@@ -333,26 +359,22 @@ def gif_frame(img):
 
 
 def save_variant(variant, character, action, frames, frame_ms):
-    assert len({f.size for f in frames}) == 1
     folder = OUT / variant / character
     folder.mkdir(parents=True, exist_ok=True)
     tag = f"{character}_{variant}_{action}"
-    scale = max(1, TARGET_PX // max(frames[0].size))
-    big = [upscale(f, scale) for f in frames]
-    for i, (frame, up) in enumerate(zip(frames, big), start=1):
+    for i, frame in enumerate(frames, start=1):
         frame.save(folder / f"{tag}_{i}.png")
-        up.save(folder / f"{tag}_{i}_x{scale}.png")
-    big[0].save(
-        folder / f"{tag}_x{scale}.png",
+    frames[0].save(
+        folder / f"{tag}_anim.png",
         save_all=True,
-        append_images=big[1:],
+        append_images=frames[1:],
         duration=frame_ms,
         loop=0,
         disposal=2,
     )
-    gif = [gif_frame(b) for b in big]
+    gif = [gif_frame(f) for f in frames]
     gif[0].save(
-        folder / f"{tag}_x{scale}.gif",
+        folder / f"{tag}.gif",
         save_all=True,
         append_images=gif[1:],
         duration=frame_ms,
@@ -364,12 +386,13 @@ def save_variant(variant, character, action, frames, frame_ms):
 
 def main():
     for a in ANIMATIONS:
+        box = drawn_box(a["frames"])
         tones = {
-            "binary": lambda ch: BLACK,
-            "grey": lambda ch, m=a["grey"]: TONES.get(m.get(ch)),
+            "binary": lambda ch: CLEAR,
+            "grey": lambda ch, m=a["grey"]: TONES.get(m.get(ch), BLACK),
         }
         for variant, tone_of in tones.items():
-            frames = [upscale(mask(f, tone_of), a["upscale"]) for f in a["frames"]]
+            frames = [fit(mask(f, box, tone_of), a["frame"]) for f in a["frames"]]
             save_variant(variant, a["character"], a["action"], frames, a["frame_ms"])
 
 
