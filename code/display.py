@@ -172,6 +172,7 @@ class ArduinoDisplay(Display):
         import serial
         from serial.tools import list_ports
 
+        self.protocol = None
         self.port = port or cfg.ARDUINO_PORT or self._find_port(list_ports)
         self.ser = serial.Serial(self.port, baud or cfg.ARDUINO_BAUD, timeout=cfg.ARDUINO_TIMEOUT_S)
         size = self._banner(3.0)
@@ -180,6 +181,9 @@ class ArduinoDisplay(Display):
             size = self._banner(2.0)
         if size is None:
             raise RuntimeError(f"nothing answered on {self.port}; upload arduino/aperture_panel to the board")
+        if self.protocol != cfg.ARDUINO_PROTOCOL:
+            raise RuntimeError(f"the board on {self.port} runs protocol {self.protocol} and this code needs "
+                               f"{cfg.ARDUINO_PROTOCOL}; upload arduino/aperture_panel to the board again")
         self.ser.write(bytes([ord("O"), (cfg.PANEL_ROTATION // 90) % 4]))
         size = self._banner(2.0)
         if size != (cfg.PANEL_W, cfg.PANEL_H):
@@ -196,7 +200,8 @@ class ArduinoDisplay(Display):
         raise RuntimeError(f"no Arduino found; set ARDUINO_PORT in config.py. Serial ports: {found}")
 
     def _banner(self, seconds):
-        """(width, height) from the next 'aperture 1 W H' line, or None after `seconds`"""
+        """(width, height) from the next 'aperture <protocol> W H' line, or None after `seconds`;
+        the protocol number lands in self.protocol"""
         deadline = time.monotonic() + seconds
         while True:
             left = deadline - time.monotonic()
@@ -206,13 +211,16 @@ class ArduinoDisplay(Display):
             parts = self.ser.readline().decode("ascii", errors="replace").split()
             if len(parts) == 4 and parts[0] == "aperture":
                 try:
-                    return int(parts[2]), int(parts[3])
+                    self.protocol, w, h = int(parts[1]), int(parts[2]), int(parts[3])
+                    return w, h
                 except ValueError:
                     continue
 
     def _ack(self):
         self.ser.timeout = cfg.ARDUINO_TIMEOUT_S
         reply = self.ser.read(1)
+        while reply == b"c":             # credits still on their way at the end of a frame
+            reply = self.ser.read(1)
         if reply == b"K":
             return time.monotonic()
         if reply == b"E":
@@ -220,8 +228,28 @@ class ArduinoDisplay(Display):
         raise RuntimeError(f"no acknowledgement from {self.port} within {cfg.ARDUINO_TIMEOUT_S} s")
 
     def show(self, img):
+        """Send the frame with at most ARDUINO_WINDOW bytes in flight. The sketch sends 'c' for
+        every ARDUINO_CREDIT bytes it takes out of its receive buffer, so the buffer never holds
+        more than the window, however long the panel takes over each run."""
+        data = encode_runs(img)
         self.ser.reset_input_buffer()
-        self.ser.write(b"R" + encode_runs(img))
+        self.ser.write(b"R")
+        self.ser.timeout = cfg.ARDUINO_TIMEOUT_S
+        sent = credited = 0
+        while sent < len(data):
+            room = cfg.ARDUINO_WINDOW - (sent - credited)
+            if room > 0:
+                chunk = data[sent:sent + room]
+                self.ser.write(chunk)
+                sent += len(chunk)
+                continue
+            reply = self.ser.read(1)
+            if reply == b"c":
+                credited += cfg.ARDUINO_CREDIT
+            elif reply == b"E":
+                raise RuntimeError("the sketch rejected the frame part way through")
+            else:
+                raise RuntimeError(f"no credit from {self.port} within {cfg.ARDUINO_TIMEOUT_S} s")
         t = self._ack()
         self.last = img
         return t

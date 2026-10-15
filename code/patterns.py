@@ -4,16 +4,23 @@ Every pattern is drawn in millimetres on the lens pupil and converted to panel p
 with PANEL_PITCH_MM, so the same pattern lands at the same physical size whichever
 backend shows it. make() returns a PIL "L" image with 255 in the open pixels, or the
 inverse when PANEL_INVERT is set.
+
+A pattern name is a built-in name, a mask file name, or a path to a PNG or GIF. Frame k
+of a GIF is "<path>.gif#k", and expand() turns a GIF into one name per frame, so a
+sequence takes one photo of each frame.
 """
+import re
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageSequence
 
 import config as cfg
 
 OPEN = set("1#X*O")
 SHUT = set("0._-")
+IMAGE_EXT = (".png", ".gif")
+GIF_DEFAULT_MS = 100        # browsers play a delay of 10 ms or less, or none, as 100 ms
 
 
 def pupil_px(diameter_mm=None):
@@ -87,18 +94,86 @@ def subaperture(i, n=None, diameter_mm=None):
     return tile & disc(diameter_mm)
 
 
-def shape_png(path, diameter_mm=None):
-    """any black and white PNG, white = open, scaled to fit the pupil and centred: custom bokeh"""
-    img = Image.open(path).convert("L")
-    width = int(round(pupil_px(diameter_mm)))
-    scale = width / max(img.size)
-    size = (max(1, int(round(img.width * scale))), max(1, int(round(img.height * scale))))
-    img = img.resize(size, Image.NEAREST)
+def shape_png(path, diameter_mm=None, image_scale=1.0):
+    """any PNG as an aperture, scaled to the pupil and centred: custom bokeh"""
+    return shape_image(Image.open(path), diameter_mm, image_scale)
+
+
+def open_pixels(img):
+    """True where light passes. In an image with transparency, such as the sprites, the
+    transparent pixels are open, like clear glass, and every opaque pixel is shut whatever its
+    colour, black or grey. In an image with no transparency white is open"""
+    if img.has_transparency_data:
+        return np.asarray(img.convert("RGBA"))[..., 3] <= 127
+    return np.asarray(img.convert("L")) > 127
+
+
+def shape_image(img, diameter_mm=None, image_scale=1.0):
+    """the current frame of a PIL image as an aperture: its longest side is image_scale times
+    the pupil diameter, centred. 0.71 fits the whole image inside the round pupil; above 1
+    the edges that run off the panel are cut"""
+    mask = Image.fromarray(open_pixels(img).astype(np.uint8) * 255)
+    width = int(round(pupil_px(diameter_mm) * image_scale))
+    scale = width / max(mask.size)
+    w, h = max(1, int(round(mask.width * scale))), max(1, int(round(mask.height * scale)))
+    src = np.asarray(mask.resize((w, h), Image.NEAREST)) > 127
     out = blank()
-    x0 = (cfg.PANEL_W - size[0]) // 2
-    y0 = (cfg.PANEL_H - size[1]) // 2
-    out[y0:y0 + size[1], x0:x0 + size[0]] = np.asarray(img) > 127
+    x0, y0 = (cfg.PANEL_W - w) // 2, (cfg.PANEL_H - h) // 2
+    sx, sy = max(0, -x0), max(0, -y0)                 # rows and columns that fall off the panel
+    dx, dy = max(0, x0), max(0, y0)
+    cw, ch = min(w - sx, cfg.PANEL_W - dx), min(h - sy, cfg.PANEL_H - dy)
+    out[dy:dy + ch, dx:dx + cw] = src[sy:sy + ch, sx:sx + cw]
     return out
+
+
+def split_frame(name):
+    """("walk.gif", 3) for "walk.gif#3"; (name, None) for anything else"""
+    base, sep, frame = name.rpartition("#")
+    if sep and frame.isdigit() and base.lower().endswith(".gif"):
+        return base, int(frame)
+    return name, None
+
+
+def is_image(name):
+    return split_frame(name)[0].lower().endswith(IMAGE_EXT)
+
+
+def gif_frame(path, i, diameter_mm=None, image_scale=1.0):
+    """frame i of a GIF, as shape_png does a PNG; later frames come out composited, as a browser shows them"""
+    with Image.open(path) as img:
+        n = getattr(img, "n_frames", 1)
+        if not 0 <= i < n:
+            raise ValueError(f"{path} has {n} frames, no frame {i}")
+        img.seek(i)
+        return shape_image(img, diameter_mm, image_scale)
+
+
+def gif_play(path, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
+    """every frame of a GIF as a panel image with its delay in ms, in one pass, for playback"""
+    images, delays = [], []
+    with Image.open(path) as img:
+        for fr in ImageSequence.Iterator(img):
+            images.append(to_image(rotate(shape_image(fr, diameter_mm, image_scale), rotation_deg)))
+            ms = fr.info.get("duration") or 0
+            delays.append(ms if ms > 10 else GIF_DEFAULT_MS)
+    return images, delays
+
+
+def expand(name):
+    """a GIF becomes one name per frame, walk.gif#0, walk.gif#1 and so on; any other name stays as it is"""
+    base, frame = split_frame(name)
+    if frame is None and base.lower().endswith(".gif"):
+        with Image.open(base) as img:
+            return [f"{base}#{i}" for i in range(getattr(img, "n_frames", 1))]
+    return [name]
+
+
+def tag(name):
+    """the pattern name as it goes into file names: an image path becomes its file stem, a GIF
+    frame adds _fNN, and anything else that is unsafe in a file name becomes an underscore"""
+    base, frame = split_frame(name)
+    t = Path(base).stem + ("" if frame is None else f"_f{frame:02d}") if is_image(name) else name
+    return re.sub(r"[^\w.-]", "_", t)
 
 
 def mask_names():
@@ -110,8 +185,30 @@ def names():
     return ["open", "white", "black"] + mask_names() + scans
 
 
-def build(name, diameter_mm=None):
-    """bool array for a pattern name; masks/<name>.txt, scanN, or a path to a PNG"""
+def rotate(mask, deg):
+    """the mask turned deg degrees anticlockwise, as the panel image shows it, about the panel
+    centre, nearest neighbour. The centre sits between pixels on both axes, so 90 degree steps
+    map pixel to pixel exactly; other angles resample. What turns off the panel is lost"""
+    if not deg % 360:
+        return mask
+    yy, xx = _grid()                                   # offsets from the panel centre
+    t = np.deg2rad(deg)
+    sx = np.rint(np.cos(t) * xx - np.sin(t) * yy + (cfg.PANEL_W - 1) / 2).astype(int)
+    sy = np.rint(np.sin(t) * xx + np.cos(t) * yy + (cfg.PANEL_H - 1) / 2).astype(int)
+    inside = (sx >= 0) & (sx < cfg.PANEL_W) & (sy >= 0) & (sy < cfg.PANEL_H)
+    out = blank()
+    out[inside] = mask[sy[inside], sx[inside]]
+    return out
+
+
+def build(name, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
+    """bool array for a pattern name; masks/<name>.txt, scanN, a path to a PNG or GIF, or <path>.gif#k.
+    A GIF with no frame number gives its first frame. image_scale sizes images only;
+    rotation_deg turns any pattern, anticlockwise"""
+    return rotate(_build(name, diameter_mm, image_scale), rotation_deg)
+
+
+def _build(name, diameter_mm, image_scale):
     if name == "open":
         return disc(diameter_mm)
     if name == "white":
@@ -120,8 +217,11 @@ def build(name, diameter_mm=None):
         return black()
     if name.startswith("scan") and name[4:].isdigit():
         return subaperture(int(name[4:]), diameter_mm=diameter_mm)
-    if name.lower().endswith(".png"):
-        return shape_png(name, diameter_mm)
+    if is_image(name):
+        base, frame = split_frame(name)
+        if base.lower().endswith(".gif"):
+            return gif_frame(base, frame or 0, diameter_mm, image_scale)
+        return shape_png(base, diameter_mm, image_scale)
     if (cfg.MASK_DIR / f"{name}.txt").exists():
         return coded(name, diameter_mm)
     raise KeyError(f"no pattern called {name!r}; have {names()}")
@@ -134,8 +234,8 @@ def to_image(open_mask):
     return Image.fromarray(px)
 
 
-def make(name, diameter_mm=None):
-    return to_image(build(name, diameter_mm))
+def make(name, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
+    return to_image(build(name, diameter_mm, image_scale, rotation_deg))
 
 
 if __name__ == "__main__":

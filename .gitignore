@@ -20,6 +20,8 @@
 # Python
 __pycache__/
 code/out/
+code/.venv/
+captures/
 imgui.ini
 
 # Course lecture slides

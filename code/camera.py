@@ -129,6 +129,31 @@ class GPhotoCamera(Camera):
         return sorted(written, key=lambda p: (p.suffix.lower() not in RAW_EXT, p.name))
 
 
+def to_dng(raw):
+    """a DNG beside a CR2 through dnglab, without the CR2 embedded in it. The raw pixels and the
+    BlackLevel tag match the CR2, so MATLAB reads the same numbers. LibRaw reads these DNGs
+    with a black level 40 to 100 counts too high, so rawpy and gates.py stay on the CR2"""
+    raw = Path(raw)
+    out = raw.with_suffix(".dng")
+    if shutil.which(cfg.DNGLAB_BIN) is None:
+        raise CameraError(f"{cfg.DNGLAB_BIN} not found; see Laptop setup in the README")
+    proc = subprocess.run([cfg.DNGLAB_BIN, "convert", "--embed-raw", "false", "--override", str(raw), str(out)],
+                          capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0 or not out.exists():
+        raise CameraError(f"dnglab could not convert {raw.name}: {proc.stderr.strip()[-300:]}")
+    return out
+
+
+def add_dngs(files):
+    """files from capture() with a DNG added after each CR2 when SAVE_DNG is on"""
+    out = list(files)
+    if cfg.SAVE_DNG:
+        for f in files:
+            if f.suffix.lower() == ".cr2":
+                out.append(to_dng(f))
+    return out
+
+
 def open_camera(name, display=None):
     if name == "gphoto":
         return GPhotoCamera()

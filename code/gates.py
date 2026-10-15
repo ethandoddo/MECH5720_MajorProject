@@ -45,7 +45,7 @@ SHARED_PASS = 0.3         # gate 2 passes when the pair shares under this fracti
                           # pair 35%, a disc against itself 100%
 MIN_EXTENT_FOR_NULLS = 25 # px; nearer focus than this the kernel has no nulls in the band to judge
 
-RAW_FIRST = {".cr2": 0, ".dng": 0, ".png": 1, ".jpg": 2, ".jpeg": 2}
+RAW_FIRST = {".cr2": 0, ".dng": 1, ".png": 2, ".jpg": 3, ".jpeg": 3}   # LibRaw misreads the black level of dnglab's DNGs, so a CR2 beside one wins
 
 
 # ---- sessions -------------------------------------------------------------------------------

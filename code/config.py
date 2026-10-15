@@ -16,6 +16,9 @@ WINDOW_SCALE = 3                        # window backend: 128 x 160 becomes 384 
 # arduino backend: the laptop streams patterns to arduino/aperture_panel on an Arduino or ESP32 over USB serial
 ARDUINO_PORT = None                     # None finds the first Arduino or ESP32; else "/dev/ttyACM0", "/dev/ttyUSB0" or "COM5"
 ARDUINO_BAUD = 500_000                  # must match BAUD in the sketch
+ARDUINO_PROTOCOL = 2                    # must match PROTOCOL in the sketch, which the banner reports
+ARDUINO_CREDIT = 16                     # must match CREDIT_BYTES in the sketch: one 'c' per this many bytes taken
+ARDUINO_WINDOW = 48                     # most frame bytes in flight; under the Uno's 64 byte receive buffer
 ARDUINO_TIMEOUT_S = 2.0                 # wait for the sketch's acknowledgement; a frame takes under 0.5 s
 
 # st7735 backend, the Raspberry Pi option: SPI wiring in BCM numbering, the Adafruit Pi guide's default
@@ -40,5 +43,10 @@ SEQUENCES = {
 
 # ---- camera -------------------------------------------------------------------------
 GPHOTO_BIN = "gphoto2"
+SAVE_DNG = True                         # a DNG beside every CR2, for the Lab 3 MATLAB scripts; gates.py reads the CR2
+DNGLAB_BIN = "dnglab"                   # github.com/dnglab/dnglab, converts the 60D's CR2 losslessly
 SETTLE_S = 0.3                          # wait after a pattern change before the shutter fires
 CAPTURE_TIMEOUT_S = 60                  # RAW download over USB 2 from the 60D takes a few seconds
+# live view keeps the mirror up and the sensor streaming, the biggest drain on the LP-E6, so it stops itself
+LIVEVIEW_IDLE_S = 30                    # when no client has taken a frame for this long: a closed window or a dropped stream
+LIVEVIEW_MAX_S = 600                    # and after this long in one go, watched or not; tick the box again to carry on. 0 for no limit

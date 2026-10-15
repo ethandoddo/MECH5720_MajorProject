@@ -8,9 +8,14 @@ server.py is running, or point --host at the machine that runs it.
   python capture_series.py --sequence pair --label 700mm --outdir captures/gate3
   python capture_series.py --patterns open levin nayar open --label 700mm
   python capture_series.py --sequence scan --label 1000mm --outdir captures/refocus
+  python capture_series.py --patterns open ~/star.png ~/walk.gif open --label bokeh
+  python capture_series.py --play ~/walk.gif --speed 2
+  python capture_series.py --stop
 
 A sequence runs inside the server and the files come back to --outdir named
-<label>_<index>_<pattern>.<ext> with the manifest beside them.
+<label>_<index>_<pattern>.<ext> with the manifest beside them. A GIF in --patterns gives
+one frame per GIF frame, and an image path is named by its file stem, walk_f03 for frame
+3 of walk.gif.
 
 Requires: requests
 """
@@ -47,7 +52,7 @@ def wait_for(base, session):
     while True:
         m = requests.get(f"{base}/sequence/{session}", timeout=10).json()
         for fr in m["frames"][seen:]:
-            print(f"{fr['index']:02d} {fr['pattern']:10s} shown {fr['shown_s']:7.3f}s fired {fr['fired_s']:7.3f}s")
+            print(f"{fr['index']:02d} {fr.get('tag', fr['pattern']):10s} shown {fr['shown_s']:7.3f}s fired {fr['fired_s']:7.3f}s")
         seen = len(m["frames"])
         if m.get("done"):
             return m
@@ -66,12 +71,18 @@ def main():
     ap.add_argument("--live", choices=["on", "off"], help="turn the camera's live view on or off")
     ap.add_argument("--pattern", help="show one pattern and stop")
     ap.add_argument("--capture", action="store_true", help="with --pattern: also take one frame")
+    ap.add_argument("--play", metavar="GIF", help="loop a GIF on the panel until --stop or another pattern")
+    ap.add_argument("--speed", type=float, default=1.0, help="with --play: multiplier on the GIF's frame delays")
+    ap.add_argument("--stop", action="store_true", help="stop GIF playback")
     ap.add_argument("--sequence", help="named sequence from config.SEQUENCES: pair, scan, transmission")
     ap.add_argument("--patterns", nargs="+", help="explicit list of patterns to show and capture")
     ap.add_argument("--label", default="frame")
     ap.add_argument("--outdir", default=".")
     ap.add_argument("--settle", type=float, default=None, help="seconds between showing and firing")
     ap.add_argument("--diameter", type=float, default=None, help="pupil diameter in mm, default from config")
+    ap.add_argument("--image-scale", type=float, default=1.0,
+                    help="PNG and GIF size against the pupil: 1 = longest side fills it, 0.71 = fits inside the circle")
+    ap.add_argument("--rotate", type=float, default=0.0, help="turn the pattern this many degrees anticlockwise")
     args = ap.parse_args()
     base = f"http://{args.host}:{args.port}"
 
@@ -90,7 +101,8 @@ def main():
         print("live view", r.json())
 
     if args.pattern:
-        r = requests.post(f"{base}/pattern", json={"name": args.pattern, "diameter_mm": args.diameter}, timeout=10)
+        r = requests.post(f"{base}/pattern", json={"name": args.pattern, "diameter_mm": args.diameter,
+                                                          "image_scale": args.image_scale, "rotation_deg": args.rotate}, timeout=10)
         if r.status_code != 200:
             raise SystemExit(r.json().get("error"))
         print("showing", args.pattern)
@@ -100,14 +112,30 @@ def main():
                 raise SystemExit(r.json().get("error"))
             info = r.json()
             os.makedirs(args.outdir, exist_ok=True)
+            tag = info.get("tag", info["pattern"])
             for name in info.get("files", [info["file"]]):
                 ext = os.path.splitext(name)[1]
-                download(base, info["session"], name, os.path.join(args.outdir, f"{args.label}_{args.pattern}{ext}"))
+                download(base, info["session"], name, os.path.join(args.outdir, f"{args.label}_{tag}{ext}"))
+
+    if args.stop:
+        r = requests.post(f"{base}/play", json={"stop": True}, timeout=15)
+        print("stopped" if r.status_code == 200 else r.json().get("error"))
+    if args.play:
+        r = requests.post(f"{base}/play", json={"name": os.path.abspath(os.path.expanduser(args.play)),
+                                                "speed": args.speed, "diameter_mm": args.diameter,
+                                                "image_scale": args.image_scale, "rotation_deg": args.rotate}, timeout=30)
+        if r.status_code != 200:
+            raise SystemExit(r.json().get("error"))
+        info = r.json()
+        print(f"playing {info['playing']} at {info['speed']}x" +
+              (f", {info['frames']} frames" if "frames" in info else ""))
 
     if args.sequence or args.patterns:
-        body = {"label": args.label}
+        body = {"label": args.label, "image_scale": args.image_scale, "rotation_deg": args.rotate}
         if args.patterns:
-            body["patterns"] = args.patterns
+            # the server opens image paths from its own working directory, so send them absolute
+            body["patterns"] = [os.path.abspath(p) if p.lower().endswith((".png", ".gif")) else p
+                                for p in args.patterns]
         else:
             body["sequence"] = args.sequence
         if args.settle is not None:
@@ -123,10 +151,11 @@ def main():
             print("sequence stopped:", manifest["error"])
         os.makedirs(args.outdir, exist_ok=True)
         for fr in manifest["frames"]:
+            tag = fr.get("tag", fr["pattern"])
             for name in fr.get("files", [fr["file"]]):
                 ext = os.path.splitext(name)[1]
-                download(base, session, name, os.path.join(args.outdir, f"{args.label}_{fr['index']:02d}_{fr['pattern']}{ext}"))
-            fr["local"] = os.path.join(args.outdir, f"{args.label}_{fr['index']:02d}_{fr['pattern']}")
+                download(base, session, name, os.path.join(args.outdir, f"{args.label}_{fr['index']:02d}_{tag}{ext}"))
+            fr["local"] = os.path.join(args.outdir, f"{args.label}_{fr['index']:02d}_{tag}")
         with open(os.path.join(args.outdir, f"{args.label}_manifest.json"), "w") as f:
             json.dump(manifest, f, indent=2)
 

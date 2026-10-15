@@ -6,10 +6,14 @@ patterns, camera settings, single frames and sequences. With Live view on, the c
 view streams the EOS 60D's live view. Off, it shows the last frame the camera took.
 Live view pauses around every capture because one process owns the USB link.
 
+PNG and GIF files come in through a file dialog. A GIF plays on the panel at a chosen
+speed, and in an image sequence each GIF frame gets its own photo. The server opens the
+files by path, so they have to be on the machine that runs it.
+
   python camview_capture.py --outdir captures                       # server on this laptop
   python camview_capture.py --host 192.168.1.100 --outdir captures  # server on another machine
 
-Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle
+Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle, pillow, and zenity for the file dialog
   pip install -r requirements.txt
 """
 
@@ -23,10 +27,12 @@ import time
 import cv2
 import numpy as np
 import requests
+from PIL import Image
 
 import glfw
 import OpenGL.GL as gl
 from imgui_bundle import imgui
+from imgui_bundle import portable_file_dialogs as pfd
 from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
 
 status_message = "Ready"
@@ -35,6 +41,14 @@ OK = (0.2, 0.8, 0.2, 1.0)
 BUSY = (0.9, 0.6, 0.2, 1.0)
 BAD = (0.9, 0.2, 0.2, 1.0)
 SETTINGS = ("iso", "shutterspeed", "aperture")
+IMAGE_FILTERS = ["Images (.png .gif)", "*.png *.gif *.PNG *.GIF", "All files", "*"]
+FIT_CIRCLE_PCT = 70.7       # a square image's corners just touch the round pupil
+RESIZE_DELAY_S = 0.4        # redraw this long after Pupil mm, Image size or Rotation stops changing
+
+
+def is_image_name(name):
+    n = (name or "").lower()
+    return n.endswith((".png", ".gif")) or ".gif#" in n
 
 
 def set_status(msg, color=(0.5, 0.7, 1.0, 1.0)):
@@ -71,8 +85,16 @@ class Server:
     def patterns(self):
         return self.get("/patterns").json()
 
-    def show(self, name, diameter_mm=None):
-        return self.post("/pattern", {"name": name, "diameter_mm": diameter_mm}, timeout=15)
+    def show(self, name, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
+        return self.post("/pattern", {"name": name, "diameter_mm": diameter_mm, "image_scale": image_scale,
+                                      "rotation_deg": rotation_deg}, timeout=15)
+
+    def play(self, name, speed, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
+        return self.post("/play", {"name": name, "speed": speed, "diameter_mm": diameter_mm,
+                                   "image_scale": image_scale, "rotation_deg": rotation_deg}, timeout=30)
+
+    def stop_play(self):
+        return self.post("/play", {"stop": True}, timeout=15)
 
     def choices(self):
         return self.get("/camera/choices", timeout=60).json()
@@ -141,7 +163,7 @@ class Poller(threading.Thread):
                             self.camera_frame = np.ascontiguousarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
                             self.camera_new = True
                         self._seen_count = st["capture_count"]
-                key = (st["pattern"], st["diameter_mm"])
+                key = (st["pattern"], st["diameter_mm"], st.get("image_scale"), st.get("rotation_deg"))
                 if key != self._seen_pattern and st["pattern"]:
                     data = np.frombuffer(self.server.pattern_png(), np.uint8)
                     img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
@@ -308,15 +330,18 @@ def download_sequence(server, session, outdir, label):
         manifest = server.sequence(session)
         os.makedirs(outdir, exist_ok=True)
         for fr in manifest["frames"]:
+            tag = fr.get("tag", fr["pattern"])
             for name in fr.get("files", [fr["file"]]):
                 ext = os.path.splitext(name)[1]
-                dest = os.path.join(outdir, f"{label}_{fr['index']:02d}_{fr['pattern']}{ext}")
+                dest = os.path.join(outdir, f"{label}_{fr['index']:02d}_{tag}{ext}")
                 server.download(session, name, dest)
-            fr["local"] = os.path.join(outdir, f"{label}_{fr['index']:02d}_{fr['pattern']}")
+            fr["local"] = os.path.join(outdir, f"{label}_{fr['index']:02d}_{tag}")
         with open(os.path.join(outdir, f"{label}_manifest.json"), "w") as f:
             json.dump(manifest, f, indent=2)
         if manifest.get("error"):
             set_status(f"Sequence stopped: {manifest['error']}", BAD)
+        elif manifest.get("dng_error"):
+            set_status(f"Saved {len(manifest['frames'])} frames to {outdir}, but no DNG: {manifest['dng_error']}", BUSY)
         else:
             set_status(f"Saved {len(manifest['frames'])} frames to {outdir}", OK)
     except Exception as e:
@@ -326,12 +351,27 @@ def download_sequence(server, session, outdir, label):
 def download_single(server, info, outdir, label):
     try:
         os.makedirs(outdir, exist_ok=True)
+        tag = info.get("tag", info["pattern"])
         for name in info.get("files", [info["file"]]):
             ext = os.path.splitext(name)[1]
-            server.download(info["session"], name, os.path.join(outdir, f"{label}_{info['pattern']}{ext}"))
-        set_status(f"Saved {label}_{info['pattern']} to {outdir}", OK)
+            server.download(info["session"], name, os.path.join(outdir, f"{label}_{tag}{ext}"))
+        if info.get("dng_error"):
+            set_status(f"Saved {label}_{tag} to {outdir}, but no DNG: {info['dng_error']}", BUSY)
+        else:
+            set_status(f"Saved {label}_{tag} to {outdir}", OK)
     except Exception as e:
         set_status(f"Download error: {e}", BAD)
+
+
+def frame_count(path):
+    """photos a sequence entry will take: one per GIF frame, one for anything else, 0 if unreadable"""
+    if not path.lower().endswith(".gif"):
+        return 1
+    try:
+        with Image.open(path) as img:
+            return getattr(img, "n_frames", 1)
+    except Exception:
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +394,25 @@ def main():
         "choices": {}, "choice_idx": {}, "label": "frame", "outdir": args.outdir,
         "sequences": {}, "seq_idx": 0, "settle": 0.3, "custom": "open levin nayar open",
         "seq_session": None, "seq_collected": True, "seq_label": "",
+        "speed": 1.0, "image_pct": 100.0, "rotation": 0.0, "resize_at": 0.0, "images": [], "image_counts": [], "image_sel": -1,
+        "dialog": None, "dialog_target": None, "dialog_dir": os.path.expanduser("~"),
     }
+
+    def open_dialog(target):
+        """target "single" fills the image field, "images" appends to the sequence list"""
+        if ui["dialog"] is not None:
+            return
+        try:
+            opts = pfd.opt.multiselect if target == "images" else pfd.opt.none
+            ui["dialog"] = pfd.open_file("Choose PNG or GIF", ui["dialog_dir"], IMAGE_FILTERS, opts)
+            ui["dialog_target"] = target
+        except Exception as e:
+            set_status(f"No file dialog: {e}. sudo apt install zenity", BAD)
+
+    def add_images(paths):
+        for p in paths:
+            ui["images"].append(p)
+            ui["image_counts"].append(frame_count(p))
 
     def load_lists():
         try:
@@ -443,6 +501,17 @@ def main():
                 ui["seq_collected"] = True
                 in_thread(download_sequence, server, ui["seq_session"], ui["outdir"], ui["seq_label"])
 
+        # the file dialog runs as its own process; collect its answer once it closes
+        if ui["dialog"] is not None and ui["dialog"].ready(0):
+            picked = ui["dialog"].result()
+            ui["dialog"] = None
+            if picked:
+                ui["dialog_dir"] = os.path.dirname(picked[0])
+                if ui["dialog_target"] == "images":
+                    add_images(picked)
+                else:
+                    ui["png_path"] = picked[0]
+
         impl.process_inputs()
         imgui.new_frame()
 
@@ -469,7 +538,9 @@ def main():
         imgui.set_next_window_pos((860, 20), imgui.Cond_.first_use_ever)
         imgui.begin("Aperture Panel")
         if status:
-            imgui.text(f"{status['pattern']}  {status['diameter_mm']:.1f} mm  {status['panel'][0]}x{status['panel'][1]}")
+            rot = status.get("rotation_deg") or 0
+            imgui.text(f"{os.path.basename(status['pattern'] or '')}  {status['diameter_mm']:.1f} mm  "
+                       + (f"{rot:.0f} deg  " if rot else "") + f"{status['panel'][0]}x{status['panel'][1]}")
             imgui.separator()
         if panel_size:
             draw_fitted(panel_tex, *panel_size)
@@ -503,11 +574,23 @@ def main():
         changed, val = imgui.input_float("Pupil mm (0 = config)", ui["diameter"], 0.5, 5.0, "%.1f")
         if changed:
             ui["diameter"] = max(0.0, val)
+            ui["resize_at"] = time.time() + RESIZE_DELAY_S
+        changed, val = imgui.slider_float("Rotation", ui["rotation"], -180.0, 180.0, "%.0f deg anticlockwise")
+        if changed:
+            ui["rotation"] = val
+            ui["resize_at"] = time.time() + RESIZE_DELAY_S
+        for label, step in (("-90", -90.0), ("0", None), ("+90", 90.0)):
+            if label != "-90":
+                imgui.same_line()
+            if imgui.small_button(f"{label}##rot"):
+                # keep the result inside -180..180 so the slider can show it
+                ui["rotation"] = 0.0 if step is None else (ui["rotation"] + step + 180.0) % 360.0 - 180.0
+                ui["resize_at"] = time.time()
 
         def show_pattern(name):
             d = ui["diameter"] or None
             try:
-                server.show(name, d)
+                server.show(name, d, ui["image_pct"] / 100, ui["rotation"])
                 set_status(f"Showing {name}", OK)
             except Exception as e:
                 set_status(f"Pattern error: {e}", BAD)
@@ -517,11 +600,66 @@ def main():
         imgui.same_line()
         if imgui.button("Refresh list"):
             in_thread(load_lists)
-        changed, val = imgui.input_text("PNG on server", ui["png_path"])
+        changed, val = imgui.input_text("Image", ui["png_path"])
         if changed:
             ui["png_path"] = val
-        if imgui.button("Show PNG") and ui["png_path"]:
+        if imgui.button("Browse..."):
+            open_dialog("single")
+        imgui.same_line()
+        if imgui.button("Show image") and ui["png_path"]:
             in_thread(show_pattern, ui["png_path"])
+        changed, val = imgui.slider_float("Image size", ui["image_pct"], 25.0, 140.0, "%.0f%% of pupil")
+        if changed:
+            ui["image_pct"] = val
+            ui["resize_at"] = time.time() + RESIZE_DELAY_S
+        if imgui.small_button("Fit circle"):
+            ui["image_pct"] = FIT_CIRCLE_PCT
+            ui["resize_at"] = time.time()
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("71%: the whole image fits inside the round pupil. Above 100% the edges are cut")
+
+        def play_gif(name, speed):
+            try:
+                server.play(name, speed, ui["diameter"] or None, ui["image_pct"] / 100, ui["rotation"])
+                set_status(f"Playing {os.path.basename(name)} at {speed:.2f}x", OK)
+            except Exception as e:
+                set_status(f"Play error: {e}", BAD)
+
+        def stop_gif():
+            try:
+                server.stop_play()
+                set_status("Stopped", OK)
+            except Exception as e:
+                set_status(f"Stop error: {e}", BAD)
+
+        is_gif = ui["png_path"].lower().endswith(".gif")
+        playing_now = bool(status and status.get("playing"))
+        changed, val = imgui.slider_float("GIF speed", ui["speed"], 0.25, 4.0, "%.2fx", imgui.SliderFlags_.logarithmic)
+        if changed:
+            ui["speed"] = val
+        if imgui.is_item_deactivated_after_edit() and playing_now and is_gif:
+            in_thread(play_gif, ui["png_path"], ui["speed"])     # same GIF again only changes the speed
+        # a new pupil, image size or rotation redraws whatever is on the panel once the value settles
+        if ui["resize_at"] and time.time() >= ui["resize_at"] and connected and not busy():
+            ui["resize_at"] = 0.0
+            if playing_now:
+                in_thread(play_gif, status["playing"], ui["speed"])     # restarts the GIF at the new size
+            elif status and status.get("pattern"):
+                in_thread(show_pattern, status["pattern"])
+        imgui.begin_disabled(not is_gif)
+        if imgui.button("Play GIF"):
+            in_thread(play_gif, ui["png_path"], ui["speed"])
+        imgui.end_disabled()
+        imgui.same_line()
+        imgui.begin_disabled(not playing_now)
+        if imgui.button("Stop"):
+            in_thread(stop_gif)
+        imgui.end_disabled()
+        if playing_now:
+            imgui.same_line()
+            imgui.text_colored(OK, f"playing {os.path.basename(status['playing'])} {status['play_speed']:.2f}x")
+        elif status and status.get("play_error"):
+            imgui.text_colored(BAD, f"playback stopped: {status['play_error']}")
 
         imgui.separator_text("Camera")
         if ui["choices"]:
@@ -592,7 +730,7 @@ def main():
             in_thread(capture_one)
 
         imgui.separator_text("Sequence")
-        seq_names = list(ui["sequences"]) + ["custom"]
+        seq_names = list(ui["sequences"]) + ["custom", "images"]
         changed, idx = imgui.combo("Sequence", ui["seq_idx"], seq_names)
         if changed:
             ui["seq_idx"] = idx
@@ -600,6 +738,49 @@ def main():
             changed, val = imgui.input_text("Patterns", ui["custom"])
             if changed:
                 ui["custom"] = val
+        elif seq_names[ui["seq_idx"]] == "images":
+            imgs, counts = ui["images"], ui["image_counts"]
+            if imgui.begin_list_box("##images", imgui.ImVec2(-1, 7 * imgui.get_text_line_height_with_spacing())):
+                for i, p in enumerate(imgs):
+                    n = counts[i]
+                    extra = f"  ({n} frames)" if p.lower().endswith(".gif") else ""
+                    if n == 0:
+                        extra = "  (cannot read)"
+                    clicked, _ = imgui.selectable(f"{i + 1:2d}  {os.path.basename(p)}{extra}##{i}", ui["image_sel"] == i)
+                    if clicked:
+                        ui["image_sel"] = i
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip(p)
+                imgui.end_list_box()
+            if imgui.button("Add files..."):
+                open_dialog("images")
+            imgui.same_line()
+            if imgui.button("Add pattern") and ui["patterns"]:
+                add_images([ui["patterns"][ui["pattern_idx"]]])
+            sel = ui["image_sel"]
+            has_sel = 0 <= sel < len(imgs)
+            imgui.begin_disabled(not has_sel)
+            if imgui.button("Up") and sel > 0:
+                for lst in (imgs, counts):
+                    lst[sel - 1], lst[sel] = lst[sel], lst[sel - 1]
+                ui["image_sel"] = sel - 1
+            imgui.same_line()
+            if imgui.button("Down") and has_sel and sel < len(imgs) - 1:
+                for lst in (imgs, counts):
+                    lst[sel + 1], lst[sel] = lst[sel], lst[sel + 1]
+                ui["image_sel"] = sel + 1
+            imgui.same_line()
+            if imgui.button("Remove") and has_sel:
+                del imgs[sel]
+                del counts[sel]
+                ui["image_sel"] = min(sel, len(imgs) - 1)
+            imgui.end_disabled()
+            imgui.same_line()
+            if imgui.button("Clear"):
+                imgs.clear()
+                counts.clear()
+                ui["image_sel"] = -1
+            imgui.text_disabled(f"{sum(counts)} photos" if imgs else "Add PNGs, GIFs or a pattern; runs top to bottom")
         else:
             imgui.text_wrapped(" > ".join(ui["sequences"][seq_names[ui["seq_idx"]]]))
         changed, val = imgui.input_float("Settle s", ui["settle"], 0.05, 0.5, "%.2f")
@@ -607,12 +788,18 @@ def main():
             ui["settle"] = max(0.0, val)
 
         def run_sequence():
-            body = {"label": ui["label"], "settle": ui["settle"]}
+            body = {"label": ui["label"], "settle": ui["settle"], "image_scale": ui["image_pct"] / 100,
+                    "rotation_deg": ui["rotation"]}
             if ui["diameter"]:
                 body["diameter_mm"] = ui["diameter"]
             chosen = seq_names[ui["seq_idx"]]
             if chosen == "custom":
                 body["patterns"] = ui["custom"].split()
+            elif chosen == "images":
+                if not ui["images"]:
+                    set_status("The image list is empty", BAD)
+                    return
+                body["patterns"] = list(ui["images"])
             else:
                 body["sequence"] = chosen
             try:
@@ -660,6 +847,11 @@ def main():
     poller.stop()
     if reader is not None:
         reader.stop()
+    if poller.status and poller.status.get("liveview_wanted"):
+        try:
+            server.liveview(False)      # with the window gone the camera would stream to nobody until the idle timeout
+        except Exception as e:
+            print(f"could not turn live view off: {e}")
     impl.shutdown()
     imgui.destroy_context()
     gl.glDeleteTextures([cam_tex, live_tex, panel_tex])

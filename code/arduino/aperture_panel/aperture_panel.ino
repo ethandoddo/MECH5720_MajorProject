@@ -21,7 +21,8 @@
 
   Protocol. The laptop sends one command byte, then the sketch answers:
 
-    '?'           banner "aperture 1 <width> <height>\n", also sent once at boot
+    '?'           banner "aperture 2 <width> <height>\n", also sent once at boot; 2 is the
+                  protocol version, which the laptop checks
     'O' r         rotation r in 0..3, times 90 degrees, answers with the banner
     'F' v         fill the screen black (v = 0) or white (v = 1), answers 'K'
     'R' runs...   one frame as run lengths, answers 'K' when the SPI write is done.
@@ -29,20 +30,23 @@
                   black run and so on, starting with black and summing to the width.
                   A row that starts white begins with a zero. Rows arrive top to
                   bottom. The sketch writes each run to the panel as it arrives, so
-                  it needs no frame buffer and fits an Uno's 2 KB of RAM.
+                  it needs no frame buffer and fits an Uno's 2 KB of RAM. It sends
+                  'c' each time it has taken CREDIT_BYTES more bytes of the frame out
+                  of its receive buffer.
     other bytes   ignored
 
   'E' answers a frame whose runs overrun a row or that stalls for BYTE_TIMEOUT_MS.
   After 'E' the sketch swallows bytes until the line goes quiet for QUIET_MS, so the
   next command starts clean.
 
-  Timing. At 500 kbaud a byte arrives every 20 us. A run costs about 2 us per pixel at
-  8 MHz SPI plus a few us per call, so the sketch keeps up with any pattern and the
-  serial buffer never overflows. The open disc is about 410 bytes and arrives in 8 ms,
-  and every named pattern is under 15 ms. The sketch writes each run as it arrives, so
-  the serial transfer overlaps the SPI write, which sets the frame time: about 50 ms on
-  an Uno at 8 MHz and about 35 ms on an ESP32 at 10 MHz. A board with native USB
-  ignores the baud rate.
+  Flow control. At 500 kbaud a byte arrives every 20 us, but one byte can be a run of
+  128 pixels, which takes the SPI write hundreds of us. Sent in one burst, a frame
+  outruns the panel and overflows the Uno's 64 byte receive buffer, so the laptop
+  keeps at most ARDUINO_WINDOW (48) bytes in flight and sends more as the 'c' credits
+  come back. The buffer then never holds more than 48 bytes, whatever the pattern.
+  The serial transfer still overlaps the SPI write, which sets the frame time: 95 ms
+  measured for the open disc on a CH340 Uno, 130 ms for the Lab 3 masks, 1.5 s for a
+  one pixel checkerboard, the worst case. A board with native USB ignores the baud rate.
 
   Libraries: Adafruit GFX Library and Adafruit ST7735 and ST7789 Library, which pulls
   in Adafruit BusIO. ESP32 boards need the esp32 core. A C3, S2 or S3 with no USB
@@ -82,6 +86,8 @@
 
 #define TFT_TAB INITR_BLACKTAB  // the 1.8 inch breakout; INITR_GREENTAB if the image sits 2 px off
 #define BAUD 500000             // must match ARDUINO_BAUD in config.py
+#define PROTOCOL 2              // must match ARDUINO_PROTOCOL in config.py
+#define CREDIT_BYTES 16         // must match ARDUINO_CREDIT in config.py
 #define BYTE_TIMEOUT_MS 500
 #define QUIET_MS 100
 
@@ -97,7 +103,9 @@ static int readByte(unsigned long timeout_ms) {
 }
 
 static void banner() {
-  Serial.print(F("aperture 1 "));
+  Serial.print(F("aperture "));
+  Serial.print(PROTOCOL);
+  Serial.print(' ');
   Serial.print(tft.width());
   Serial.print(' ');
   Serial.println(tft.height());
@@ -109,11 +117,14 @@ static void drainQuiet(unsigned long quiet_ms) {
   }
 }
 
-// one frame of run lengths straight onto the panel; false on overrun or stall
+// one frame of run lengths straight onto the panel; false on overrun or stall.
+// Sends 'c' for every CREDIT_BYTES taken from the receive buffer, so the laptop
+// knows how much room there is and the buffer never overflows.
 static bool receiveFrame() {
   const uint16_t w = tft.width();
   const uint16_t h = tft.height();
   bool ok = true;
+  uint8_t taken = 0;
   tft.startWrite();
   tft.setAddrWindow(0, 0, w, h);
   for (uint16_t row = 0; row < h && ok; row++) {
@@ -124,6 +135,10 @@ static bool receiveFrame() {
       if (n < 0 || filled + n > w) {
         ok = false;
         break;
+      }
+      if (++taken == CREDIT_BYTES) {
+        Serial.write('c');
+        taken = 0;
       }
       tft.writeColor(colour, n);  // returns at once when n is 0
       filled += n;
