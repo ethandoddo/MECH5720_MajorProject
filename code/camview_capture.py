@@ -25,6 +25,7 @@ Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle, pillow, and zen
 import argparse
 import json
 import os
+import re
 import shutil
 import threading
 import time
@@ -49,6 +50,7 @@ OK = (0.2, 0.8, 0.2, 1.0)
 BUSY = (0.9, 0.6, 0.2, 1.0)
 BAD = (0.9, 0.2, 0.2, 1.0)
 SETTINGS = ("iso", "shutterspeed", "aperture")
+FLUTTER_ORDER = ("impulse", "coded", "box", "leakage", "reference", "dark")     # impulse first, so the dial turns once, M to B
 IMAGE_FILTERS = ["Images (.png .gif)", "*.png *.gif *.PNG *.GIF", "All files", "*"]
 FIT_CIRCLE_PCT = 70.7       # a square image's corners just touch the round pupil
 RESIZE_DELAY_S = 0.4        # redraw this long after Pupil mm, Image size or Rotation stops changing
@@ -413,9 +415,11 @@ def main():
         # the Experiments window
         "repeats": 1, "distance": 1000, "bokeh_path": "",
         "fl_mode": 0, "fl_designed": flutter.design(), "fl_custom": "", "fl_chop": cfg.FLUTTER_CHOP_MS,
-        "fl_lead": cfg.FLUTTER_LEAD_MS, "fl_tail": cfg.FLUTTER_TAIL_MS, "fl_method": 0, "fl_photodiode": True,
+        "fl_lead": cfg.FLUTTER_LEAD_MS, "fl_tail": cfg.FLUTTER_TAIL_MS, "fl_method": 0,
         "fl_blur": 100, "fl_impulse": cfg.IMPULSE_SHUTTER,
         "fl_take": {"coded": True, "box": True, "leakage": True, "impulse": True, "reference": True, "dark": True},
+        "fl_photo_mode": 0, "fl_photo": {k: "" for k in SETTINGS}, "fl_name": "",
+        "popup_session": None, "popup_seen": None, "popup_text": "",
     }
 
     def open_dialog(target):
@@ -506,9 +510,9 @@ def main():
         except Exception as e:
             set_status(f"Stop error: {e}", BAD)
 
-    def start_steps(steps, label, experiment):
+    def start_steps(steps, label, experiment, popup=False):
         """run the steps as a sequence with the settle, pupil, image size and rotation from Controls;
-        the frames download to <outdir>/<experiment>/"""
+        the frames download to <outdir>/<experiment>/. With popup, each prompt shows as a pop-up"""
         body = {"label": label, "patterns": steps, "settle": ui["settle"], "image_scale": ui["image_pct"] / 100,
                 "rotation_deg": ui["rotation"]}
         if ui["diameter"]:
@@ -519,6 +523,7 @@ def main():
             ui["seq_label"] = label
             ui["seq_outdir"] = os.path.join(ui["outdir"], experiment)
             ui["seq_collected"] = False
+            ui["popup_session"] = info["session"] if popup else None
             set_status(f"Running {label}: {info['total']} steps...", BUSY)
         except Exception as e:
             set_status(f"Sequence error: {e}", BAD)
@@ -605,46 +610,111 @@ def main():
         except ValueError as e:
             return None, str(e)
 
+    def flutter_label(base, settings=""):
+        """the start of a Flutter tab capture's file names: the Name box or base, then _2, _3 when that
+        is already in the download folder so nothing gets replaced, then the settings"""
+        name = re.sub(r"[^A-Za-z0-9_-]+", "_", ui["fl_name"]).strip("_") or base
+        try:
+            have = os.listdir(os.path.join(ui["outdir"], "flutter"))
+        except OSError:
+            have = []
+        i = 1
+        while True:
+            label = (name if i == 1 else f"{name}_{i}") + settings
+            # download_sequence writes <label>_<index>_<tag>.<ext> and <label>_manifest.json; the last
+            # label started counts too, since its files may not have landed yet
+            used = re.compile(re.escape(label) + r"_(\d{2,}_|manifest\.json$)")
+            if label != ui["seq_label"] and not any(used.match(f) for f in have):
+                return label
+            i += 1
+
     def flutter_steps(code):
-        """the capture set in the order that needs the fewest trips to the camera: the moving
-        target through the bulb frames, the impulse frames on M, the stationary reference, the darks"""
+        """the capture set in the order that needs the fewest trips to the camera: the impulse frames
+        on M, then the moving target through the bulb frames on B, the stationary reference, the darks.
+        The first frame of each capture pauses with a pop-up that says what to set up for it"""
         n = len(code)
         chop, lead, tail = ui["fl_chop"], ui["fl_lead"], ui["fl_tail"]
-        sample = cfg.FLUTTER_SAMPLE_MS if ui["fl_photodiode"] else 0
         method = "invert" if ui["fl_method"] == 0 else "fill"
         take, r = ui["fl_take"], ui["repeats"]
         speed = flutter.target_speed(ui["fl_blur"], n, chop)
+        code_s = n * chop / 1000
+        bulb_s = flutter.total_ms(n, chop, lead, tail) / 1000
+        order = [k for k in FLUTTER_ORDER if take[k]]
+        moving = [k for k in order if k in ("coded", "box", "leakage")]
+        seen = {"dial": None, "target": None}       # what the earlier pop-ups have set up
 
         def bulb(tag, bits, prompt=None):
             s = {"code": flutter.to_text(bits), "chop_ms": chop, "lead_ms": lead, "tail_ms": tail,
-                 "sample_ms": sample, "method": method, "tag": tag}
+                 "method": method, "tag": tag}
             if prompt:
                 s["prompt"] = prompt
             return s
 
+        def prompt(k):
+            """the pop-up before the first frame of capture k: what to change, what the frame is for.
+            Call in the order of the run, since each one says what changes from the one before"""
+            dial = "M" if k == "impulse" else "B"
+            todo = [f"Turn the mode dial to {dial}." if seen["dial"] != dial else f"Leave the mode dial on {dial}."]
+            seen["dial"] = dial
+            if k in ("coded", "box", "leakage", "impulse"):
+                todo.append(f"Keep the target moving at {speed:.1f} px/s." if seen["target"] == "moving"
+                            else f"Set the target moving at {speed:.1f} px/s.")
+                seen["target"] = "moving"
+            elif k == "reference":
+                todo.insert(0, "Stop the target so it stands still.")
+                seen["target"] = "still"
+            else:
+                todo.insert(0, "Put the lens cap on.")
+            title, what = {
+                "coded": ("Coded photo", f"The shutter opens for about {bulb_s:.1f} s. The panel stays black for "
+                                         f"{lead / 1000:.1f} s, flickers the code for {code_s:.1f} s, then goes black "
+                                         f"again. The target blurs in the code's on and off pattern, which the deblur "
+                                         f"can undo."),
+                "box": ("Box photo", f"The shutter opens for about {bulb_s:.1f} s and the panel stays fully open for "
+                                     f"the code's {code_s:.1f} s, an ordinary long exposure. The target comes out as "
+                                     f"a plain smear, to compare with the coded photo."),
+                "leakage": ("Leakage photo", f"The shutter opens for about {bulb_s:.1f} s with the panel black the "
+                                             f"whole time. This measures how much light gets through the panel when "
+                                             f"it is shut."),
+                "impulse": ("Impulse photo", f"The panel goes white and the camera takes a normal {ui['fl_impulse']} s "
+                                             f"photo. The target comes out sharp but dark, the short exposure to "
+                                             f"compare with."),
+                "reference": ("Reference photo", f"The shutter opens for about {bulb_s:.1f} s and the panel stays open "
+                                                 f"for {code_s:.1f} s. With the target still, this is the sharp photo "
+                                                 f"the deblurred results are checked against."),
+                "dark": ("Dark photo", f"The shutter opens for about {bulb_s:.1f} s with the panel black and no light "
+                                       f"getting in. This measures the camera's own noise."),
+            }[k]
+            note = ""
+            if r > 1 and k in moving and k == moving[-1]:
+                names = moving[0] if len(moving) == 1 else ", ".join(moving[:-1]) + " and " + moving[-1]
+                more = f"{r - 1} more time" + ("s" if r > 2 else "") + (" in turn" if len(moving) > 1 else "")
+                note = f"\n\nAfter this photo the {names} photos repeat {more} without stopping."
+            elif r > 1 and k not in moving:
+                note = f"\n\nThe camera takes {r} of these in a row without stopping."
+            steps_todo = "\n".join(f"  {i}. {t}" for i, t in enumerate(todo, 1))
+            return (f"Step {order.index(k) + 1} of {len(order)}: {title}\n\nWhat to do:\n{steps_todo}\n\n"
+                    f"What happens: {what}{note}\n\nPress Continue when ready.")
+
         steps = []
-        moving = [k for k in ("coded", "box", "leakage") if take[k]]
-        bits = {"coded": code, "box": flutter.box(n), "leakage": flutter.shut(n)}
-        for j in range(r):
-            for k in moving:
-                prompt = None
-                if not steps:
-                    prompt = f"Turn the mode dial to B and set the target moving at {speed:.1f} px/s"
-                steps.append(bulb(k, bits[k], prompt))
         if take["impulse"]:
             for j in range(r):
                 s = {"pattern": "white", "tag": "impulse", "camera": {"shutterspeed": ui["fl_impulse"]}}
                 if j == 0:
-                    s["prompt"] = (f"Turn the mode dial to M for the {ui['fl_impulse']} s impulse frames. "
-                                   f"The target keeps moving at {speed:.1f} px/s")
+                    s["prompt"] = prompt("impulse")
                 steps.append(s)
+        bits = {"coded": code, "box": flutter.box(n), "leakage": flutter.shut(n)}
+        for j in range(r):
+            for k in moving:
+                steps.append(bulb(k, bits[k], prompt(k) if j == 0 else None))
         if take["reference"]:
             for j in range(r):
-                steps.append(bulb("reference", flutter.box(n), "Stop the target and turn the mode dial to B" if j == 0 else None))
+                steps.append(bulb("reference", flutter.box(n), prompt("reference") if j == 0 else None))
         if take["dark"]:
             for j in range(r):
-                steps.append(bulb("dark", flutter.shut(n), "Put the lens cap on, with the mode dial on B" if j == 0 else None))
-            steps.append({"prompt": "Take the lens cap off"})
+                steps.append(bulb("dark", flutter.shut(n), prompt("dark") if j == 0 else None))
+            steps.append({"prompt": "Last step: take the lens cap off\n\nAll the photos are taken. Take the lens cap "
+                                    "off, then press Continue to finish and download them."})
         return steps
 
     def flutter_tab():
@@ -671,10 +741,6 @@ def main():
         imgui.same_line()
         if imgui.radio_button("Frame write", ui["fl_method"] == 1):
             ui["fl_method"] = 1
-        imgui.same_line()
-        changed, val = imgui.checkbox("Photodiode on the board", ui["fl_photodiode"])
-        if changed:
-            ui["fl_photodiode"] = val
         changed, val = imgui.input_int("Blur px", ui["fl_blur"], 10, 50)
         if changed:
             ui["fl_blur"] = max(1, val)
@@ -696,29 +762,68 @@ def main():
             if total > cfg.FLUTTER_MAX_S:
                 imgui.text_colored(BAD, f"Over the {cfg.FLUTTER_MAX_S} s limit of the board's clock")
         imgui.text("Take:")
-        for k in ("coded", "box", "leakage", "impulse", "reference", "dark"):
+        for k in FLUTTER_ORDER:
             imgui.same_line()
             changed, val = imgui.checkbox(k, ui["fl_take"][k])
             if changed:
                 ui["fl_take"][k] = val
-        method = "invert" if ui["fl_method"] == 0 else "fill"
-        imgui.begin_disabled(code is None)
-        if imgui.button("Switch test") and code:
-            step = {"code": flutter.to_text(code), "chop_ms": ui["fl_chop"], "lead_ms": ui["fl_lead"], "tail_ms": ui["fl_tail"],
-                    "sample_ms": cfg.FLUTTER_SAMPLE_MS, "method": method, "tag": "switch", "capture": False}
-            in_thread(start_steps, [step], f"flutter_switch_{ui['fl_chop']}ms_{method}", "flutter")
+        imgui.text("Photo:")
         imgui.same_line()
+        if imgui.radio_button("Camera as it is", ui["fl_photo_mode"] == 0):
+            ui["fl_photo_mode"] = 0
+        imgui.same_line()
+        if imgui.radio_button("These settings", ui["fl_photo_mode"] == 1):
+            ui["fl_photo_mode"] = 1
+        if ui["fl_photo_mode"] == 1:
+            for k in SETTINGS:
+                ch = ui["choices"].get(k) or {}
+                opts = ch.get("choices") or []
+                if opts:
+                    if ui["fl_photo"][k] not in opts:
+                        ui["fl_photo"][k] = ch["current"] if ch.get("current") in opts else opts[0]
+                    changed, idx = imgui.combo(f"{k}##photo", opts.index(ui["fl_photo"][k]), opts)
+                    if changed:
+                        ui["fl_photo"][k] = opts[idx]
+                else:
+                    changed, val = imgui.input_text(f"{k}##photo", ui["fl_photo"][k])
+                    if changed:
+                        ui["fl_photo"][k] = val
+        changed, val = imgui.input_text_with_hint("Name", "empty for the automatic name", ui["fl_name"])
+        if changed:
+            ui["fl_name"] = val
+        method = "invert" if ui["fl_method"] == 0 else "fill"
+        settings = f"_{ui['fl_chop']}ms_{method}"
+        imgui.begin_disabled(code is None)
+        if imgui.button("LCD only flutter shutter") and code:
+            step = {"code": flutter.to_text(code), "chop_ms": ui["fl_chop"], "lead_ms": ui["fl_lead"], "tail_ms": ui["fl_tail"],
+                    "method": method, "tag": "switch", "capture": False}
+            in_thread(start_steps, repeat([step]), flutter_label("flutter_switch", settings), "flutter")
+        imgui.end_disabled()
+        imgui.same_line()
+        if imgui.button("Capture"):
+            step = {"pattern": "white", "tag": "photo"}
+            if ui["fl_photo_mode"] == 1:
+                step["camera"] = {k: v for k, v in ui["fl_photo"].items() if v}
+            in_thread(start_steps, repeat([step]), flutter_label("flutter_photo"), "flutter")
+        imgui.same_line()
+        imgui.begin_disabled(code is None)
         if imgui.button("Run") and code:
             steps = flutter_steps(code)
             if steps:
-                in_thread(start_steps, steps, f"flutter_{ui['fl_chop']}ms_{method}", "flutter")
+                in_thread(start_steps, steps, flutter_label("flutter", settings), "flutter", True)
             else:
                 set_status("Tick at least one capture", BAD)
         imgui.end_disabled()
-        imgui.text_wrapped("Switch test plays the code with the photodiode and no camera, to measure the switching "
-                           "time. Run takes the ticked captures Repeats times each: coded, box and leakage with the "
-                           "target moving and the dial on B, impulse on M, then the reference with the target stopped "
-                           "and the darks with the lens cap on. Each change is a pause with a prompt.")
+        imgui.text_wrapped("LCD only flutter shutter plays the code on the panel Repeats times with no camera, so you can "
+                           "watch it switch and check Invert takes it fully clear and dark. Capture takes a plain photo Repeats times with the panel white and no "
+                           "flicker, the dial on M, at the camera's settings as they are or at the ones picked above. "
+                           "Run takes the ticked captures Repeats times each: impulse first with the dial on M and the "
+                           "target moving, then coded, box and leakage on B with the target still moving, then the "
+                           "reference with the target stopped and the darks with the lens cap on, so the dial turns "
+                           "once. Before the first frame of each, a pop-up says what to "
+                           "do and waits for Continue; the repeats of it run straight on. Name starts the file names, "
+                           "and Run and LCD only flutter shutter add the chop and method after it. A name already in "
+                           "the folder gets _2, _3 and so on, so nothing is replaced.")
 
     while not glfw.window_should_close(window):
         glfw.poll_events()
@@ -1103,6 +1208,31 @@ def main():
             if imgui.button("Stop"):
                 in_thread(stop_job)
             imgui.separator()
+        # the Flutter run's prompts pop up, one for the first frame of each capture
+        if job and job["running"] and job.get("waiting") and job["session"] == ui["popup_session"]:
+            if ui["popup_seen"] != (job["session"], job["index"]):
+                ui["popup_seen"] = (job["session"], job["index"])
+                ui["popup_text"] = job["waiting"]
+                imgui.open_popup("Next step")
+        imgui.set_next_window_pos(imgui.get_main_viewport().get_center(), imgui.Cond_.appearing, imgui.ImVec2(0.5, 0.5))
+        if imgui.begin_popup_modal("Next step", None, imgui.WindowFlags_.always_auto_resize)[0]:
+            title, _, body = ui["popup_text"].partition("\n")
+            imgui.text_colored(BUSY, title)
+            imgui.separator()
+            imgui.push_text_wrap_pos(imgui.get_font_size() * 36)
+            imgui.text_unformatted(body.strip())
+            imgui.pop_text_wrap_pos()
+            imgui.spacing()
+            clicked_go = imgui.button("Continue", imgui.ImVec2(160, 0))
+            imgui.same_line()
+            clicked_stop = imgui.button("Stop run", imgui.ImVec2(160, 0))
+            if clicked_go:
+                in_thread(go)
+            if clicked_stop:
+                in_thread(stop_job)
+            if clicked_go or clicked_stop or not (job and job.get("waiting")):
+                imgui.close_current_popup()      # also when the job carried on or stopped from somewhere else
+            imgui.end_popup()
         imgui.begin_disabled(busy() or not connected)
         changed, val = imgui.input_int("Repeats", ui["repeats"])
         if changed:

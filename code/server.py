@@ -36,8 +36,8 @@ Endpoints:
                                 {"shutterspeed": "1/250"}, "diameter_mm": 8.9, "capture": true}
                                 pauses with the prompt until POST /sequence/go, sets the
                                 camera, then shows and fires. {"code": "1011...", "chop_ms":
-                                100, "lead_ms": 2000, "tail_ms": 500, "sample_ms": 5, "method":
-                                "invert", "tag": "coded"} is a flutter shutter step: the
+                                100, "lead_ms": 1000, "tail_ms": 200, "method": "invert",
+                                "tag": "coded"} is a flutter shutter step: the
                                 panel plays the code while the camera sits open in bulb, and
                                 the trace lands beside the frame. {"prompt": "..."} alone
                                 pauses and captures nothing
@@ -275,7 +275,7 @@ def bulb_step(i, step, d, t0, check_camera):
         camera.ensure_bulb()
     total_s = flutter.total_ms(len(code), step["chop_ms"], step["lead_ms"], step["tail_ms"]) / 1000
     show("black")
-    t_play = display.play_code(code, step["chop_ms"], step["lead_ms"], step["tail_ms"], step["sample_ms"], step["method"])
+    t_play = display.play_code(code, step["chop_ms"], step["lead_ms"], step["tail_ms"], step["method"])
     job, t_fire, stem = None, None, d / f"{i:02d}_{tag}"
     if capture:
         job = camera.bulb_start(stem, total_s)
@@ -289,7 +289,7 @@ def bulb_step(i, step, d, t0, check_camera):
         note_capture(stem, files)
     trace.update({
         "code": flutter.to_text(code), "chop_ms": step["chop_ms"], "lead_ms": step["lead_ms"],
-        "tail_ms": step["tail_ms"], "sample_ms": step["sample_ms"], "method": step["method"],
+        "tail_ms": step["tail_ms"], "method": step["method"],
         "play_s": round(t_play - t0, 4), "bulb_s": None if t_fire is None else round(t_fire - t0, 4),
         "bulb_wait_s": total_s if capture else None,
     })
@@ -358,14 +358,12 @@ def normalise_steps(requested):
             code = flutter.parse(s["code"])
             s["code"] = flutter.to_text(code)
             for k, default in (("chop_ms", cfg.FLUTTER_CHOP_MS), ("lead_ms", cfg.FLUTTER_LEAD_MS),
-                               ("tail_ms", cfg.FLUTTER_TAIL_MS), ("sample_ms", cfg.FLUTTER_SAMPLE_MS)):
+                               ("tail_ms", cfg.FLUTTER_TAIL_MS)):
                 try:
                     s[k] = int(s.get(k, default))
                 except (TypeError, ValueError):
                     raise ValueError(f"{k} must be a whole number of ms")
             flutter.check_timing(len(code), s["chop_ms"], s["lead_ms"], s["tail_ms"])
-            if s["sample_ms"] < 0:
-                raise ValueError("sample_ms is 0 or more")
             s["method"] = s.get("method") or "invert"
             if s["method"] not in ("invert", "fill"):
                 raise ValueError("method is invert or fill")

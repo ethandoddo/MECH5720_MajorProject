@@ -8,8 +8,6 @@
   its own. CS, D/C and RST are the defines below and any output pin will do. The
   breakout has its own regulator and level shifter, so it takes 5 V from an Uno or
   3.3 V from an ESP32 on Vin and on the logic pins. ESP32 numbers are GPIO numbers.
-  PHOTO is the photodiode for the flutter shutter, a photodiode or phototransistor
-  across that pin and GND with a load resistor to the supply, read as an analogue input.
 
     panel    Uno    ESP32    ESP32-C3    ESP32-S2    ESP32-S3
     Vin      5V     3V3      3V3         3V3         3V3
@@ -20,11 +18,10 @@
     D/C      8      21       10          33          8
     RST      9      22       3           38          9
     LITE     not connected, the backlight is stripped
-    PHOTO    A0     34       0           1           1
 
   Protocol. The laptop sends one command byte, then the sketch answers:
 
-    '?'           banner "aperture 3 <width> <height>\n", also sent once at boot; 3 is the
+    '?'           banner "aperture 4 <width> <height>\n", also sent once at boot; 4 is the
                   protocol version, which the laptop checks
     'O' r         rotation r in 0..3, times 90 degrees, answers with the banner
     'F' v         fill the screen black (v = 0) or white (v = 1), answers 'K'
@@ -40,16 +37,13 @@
                   of its receive buffer.
     'P' hdr code  play a flutter shutter code from the board's own clock. The header is
                   method (0 invert, 1 fill), open_white (1 when an open chop drives the
-                  pixels white), n chops (1 to MAX_CHOPS), then chop, lead, tail and
-                  sample in ms as little endian 16 bit words, then the code as
-                  (n + 7) / 8 bytes with the first chop in the top bit. The sketch fills
-                  the panel shut, answers 'P' and starts its clock, holds shut for lead
-                  ms, plays each chop for chop ms, holds shut for tail ms and reports.
-                  While it plays, every sample ms (0 for never) it reads PHOTO_PIN and
-                  sends the time since 'P' and the reading as two 16 bit words. The
-                  report is the words 0xFFFF 0xFFFF, then 'D', n, the ADC bit depth,
-                  n + 1 words of when each switch started and n + 1 of when it finished,
-                  in ms since 'P'. The last switch is the final shut.
+                  pixels white), n chops (1 to MAX_CHOPS), then chop, lead and tail in
+                  ms as little endian 16 bit words, then the code as (n + 7) / 8 bytes
+                  with the first chop in the top bit. The sketch fills the panel shut,
+                  answers 'P' and starts its clock, holds shut for lead ms, plays each
+                  chop for chop ms, holds shut for tail ms and reports. The report is
+                  'D', n, then n + 1 words of when each switch started and n + 1 of
+                  when it finished, in ms since 'P'. The last switch is the final shut.
     other bytes   ignored
 
   'E' answers a frame whose runs overrun a row or that stalls for BYTE_TIMEOUT_MS, and a
@@ -77,43 +71,36 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
-// ---- pins and SPI clock per board family. Change CS, D/C, RST and PHOTO to match the wiring.
+// ---- pins and SPI clock per board family. Change CS, D/C and RST to match the wiring.
 #if defined(ESP32)
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 #define TFT_CS 7     // C3 hardware SPI: SCK 4, MOSI 6
 #define TFT_DC 10
 #define TFT_RST 3
-#define PHOTO_PIN 0
 #elif defined(CONFIG_IDF_TARGET_ESP32S2)
 #define TFT_CS 34    // S2 hardware SPI: SCK 36, MOSI 35
 #define TFT_DC 33
 #define TFT_RST 38
-#define PHOTO_PIN 1
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #define TFT_CS 10    // S3 hardware SPI: SCK 12, MOSI 11
 #define TFT_DC 8
 #define TFT_RST 9
-#define PHOTO_PIN 1
 #else
 #define TFT_CS 5     // classic ESP32 hardware SPI: SCK 18, MOSI 23
 #define TFT_DC 21
 #define TFT_RST 22
-#define PHOTO_PIN 34
 #endif
 #define SPI_HZ 10000000  // 80 MHz / 8, under the 15 MHz ST7735R write limit
-#define ADC_BITS 12
 #else
 #define TFT_CS 10    // Uno hardware SPI: SCK 13, MOSI 11
 #define TFT_DC 8
 #define TFT_RST 9
-#define PHOTO_PIN A0
 #define SPI_HZ 15000000  // the ST7735R write limit; an Uno caps itself at 8 MHz anyway
-#define ADC_BITS 10
 #endif
 
 #define TFT_TAB INITR_BLACKTAB  // the 1.8 inch breakout; INITR_GREENTAB if the image sits 2 px off
 #define BAUD 500000             // must match ARDUINO_BAUD in config.py
-#define PROTOCOL 3              // must match ARDUINO_PROTOCOL in config.py
+#define PROTOCOL 4              // must match ARDUINO_PROTOCOL in config.py
 #define CREDIT_BYTES 16         // must match ARDUINO_CREDIT in config.py
 #define MAX_CHOPS 64            // must match MAX_CHOPS in flutter.py
 #define BYTE_TIMEOUT_MS 500
@@ -203,16 +190,6 @@ static void setOpen(bool open, uint8_t method, uint16_t openColour, uint16_t shu
   }
 }
 
-// one photodiode reading when the next one is due, as time since t0 and the ADC value.
-// The next reading is due sample_ms after this one, so a long fill never causes a burst.
-static void sampleIfDue(unsigned long t0, uint16_t sample_ms, unsigned long *next) {
-  if (!sample_ms || (long)(millis() - *next) < 0) return;
-  uint16_t v = analogRead(PHOTO_PIN);
-  write16((uint16_t)(millis() - t0));
-  write16(v);
-  *next = millis() + sample_ms;
-}
-
 static uint16_t tStart[MAX_CHOPS + 1];
 static uint16_t tEnd[MAX_CHOPS + 1];
 
@@ -220,9 +197,9 @@ static void playCode() {
   int method = readByte(BYTE_TIMEOUT_MS);
   int openWhite = readByte(BYTE_TIMEOUT_MS);
   int n = readByte(BYTE_TIMEOUT_MS);
-  uint16_t chop, lead, tail, sample;
+  uint16_t chop, lead, tail;
   if (method < 0 || method > 1 || openWhite < 0 || n < 1 || n > MAX_CHOPS ||
-      !read16(&chop) || !read16(&lead) || !read16(&tail) || !read16(&sample) || chop == 0) {
+      !read16(&chop) || !read16(&lead) || !read16(&tail) || chop == 0) {
     drainQuiet(QUIET_MS);
     Serial.write('E');
     return;
@@ -243,12 +220,12 @@ static void playCode() {
   tft.fillScreen(shutColour);
   Serial.write('P');  // the clock starts here
   unsigned long t0 = millis();
-  unsigned long nextSample = t0;
   bool open = false;
   for (uint8_t i = 0; i <= n; i++) {
     unsigned long due = t0 + lead + (unsigned long)i * chop;
     bool want = i < n && (bits[i >> 3] & (0x80 >> (i & 7)));
-    while ((long)(millis() - due) < 0) sampleIfDue(t0, sample, &nextSample);
+    while ((long)(millis() - due) < 0) {
+    }
     tStart[i] = (uint16_t)(millis() - t0);
     if (want != open) {
       setOpen(want, (uint8_t)method, openColour, shutColour);
@@ -257,12 +234,10 @@ static void playCode() {
     tEnd[i] = (uint16_t)(millis() - t0);
   }
   unsigned long end = t0 + lead + (unsigned long)n * chop + tail;
-  while ((long)(millis() - end) < 0) sampleIfDue(t0, sample, &nextSample);
-  write16(0xFFFF);
-  write16(0xFFFF);
+  while ((long)(millis() - end) < 0) {
+  }
   Serial.write('D');
   Serial.write((uint8_t)n);
-  Serial.write((uint8_t)ADC_BITS);
   for (uint8_t i = 0; i <= n; i++) write16(tStart[i]);
   for (uint8_t i = 0; i <= n; i++) write16(tEnd[i]);
 }
