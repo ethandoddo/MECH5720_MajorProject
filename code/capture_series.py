@@ -20,8 +20,8 @@ A sequence runs inside the server and the files come back to --outdir named
 <label>_<index>_<pattern>.<ext> with the manifest beside them. A GIF in --patterns gives
 one frame per GIF frame, and an image path is named by its file stem, walk_f03 for frame
 3 of walk.gif. --code plays a flutter shutter code on the panel while the camera sits
-open in bulb mode, "designed" for the code flutter.py designs, and the photodiode trace
-comes back as <label>_00_code.json. The Experiments window in camview_capture.py builds
+open in bulb mode, "designed" for the code flutter.py designs, and the trace of switch
+times comes back as <label>_00_code.json. The Experiments window in camview_capture.py builds
 the full flutter set with its baselines.
 
 Requires: requests

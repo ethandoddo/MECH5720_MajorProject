@@ -16,7 +16,7 @@ WINDOW_SCALE = 3                        # window backend: 128 x 160 becomes 384 
 # arduino backend: the laptop streams patterns to arduino/aperture_panel on an Arduino or ESP32 over USB serial
 ARDUINO_PORT = None                     # None finds the first Arduino or ESP32; else "/dev/ttyACM0", "/dev/ttyUSB0" or "COM5"
 ARDUINO_BAUD = 500_000                  # must match BAUD in the sketch
-ARDUINO_PROTOCOL = 3                    # must match PROTOCOL in the sketch, which the banner reports
+ARDUINO_PROTOCOL = 4                    # must match PROTOCOL in the sketch, which the banner reports
 ARDUINO_CREDIT = 16                     # must match CREDIT_BYTES in the sketch: one 'c' per this many bytes taken
 ARDUINO_WINDOW = 48                     # most frame bytes in flight; under the Uno's 64 byte receive buffer
 ARDUINO_TIMEOUT_S = 2.0                 # wait for the sketch's acknowledgement; a frame takes under 0.5 s
@@ -47,13 +47,13 @@ SEQUENCES = {
 # on the panel from its own clock. flutter.py designs the code and server.py runs the capture.
 FLUTTER_CHOPS = 32                      # chops in the designed code, half of them open
 FLUTTER_CHOP_MS = 100                   # default chop length; the cell switches in 30 to 70 ms, so shorter chops blur
-FLUTTER_LEAD_MS = 2000                  # panel shut from the play command until the code starts, so gphoto2 has opened the bulb
-FLUTTER_TAIL_MS = 500                   # panel shut after the code until the board reports; the bulb closes after that
-FLUTTER_SAMPLE_MS = 5                   # photodiode sample interval on the board; the window sends 0 when the box is unticked
+FLUTTER_LEAD_MS = 1000                  # panel shut from the play command until the code starts, so gphoto2 has opened the bulb;
+                                        # a guess at gphoto2's start-up, so check a real coded frame has every chop
+FLUTTER_TAIL_MS = 200                   # panel shut after the code until the board reports; the bulb closes after that
 FLUTTER_SEED = 0                        # the random search in flutter.py is repeatable, so every machine designs the same code
 FLUTTER_MAX_S = 60                      # lead + code + tail must fit the board's 16 bit millisecond clock
-BULB_OPEN = "bulb=1"                    # gphoto2 config that opens the shutter with the mode dial on B
-BULB_CLOSE = "bulb=0"                   # and closes it. If the body refuses, try eosremoterelease=Immediate and "eosremoterelease=Release Full"
+BULB_OPEN = "eosremoterelease=Immediate"       # gphoto2 config that opens the shutter with the mode dial on B
+BULB_CLOSE = "eosremoterelease=Release Full"   # and closes it. gphoto2 2.5.28 gives the 60D no bulb widget, so bulb=1 and bulb=0 take no frame
 BULB_DOWNLOAD_S = 8                     # wait for the frame after the bulb closes; a 60D RAW takes a few seconds over USB 2
 IMPULSE_SHUTTER = "1/250"               # default shutter for the impulse baseline, with the mode dial on M
 
