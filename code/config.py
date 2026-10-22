@@ -43,19 +43,17 @@ SEQUENCES = {
 }
 
 # ---- flutter shutter ----------------------------------------------------------------
-# The panel is the shutter: the camera sits open in bulb mode while the board plays a binary code
-# on the panel from its own clock. flutter.py designs the code and server.py runs the capture.
+# The panel is the shutter: the camera takes one photo on M at its shutter speed while the board plays
+# a binary code on the panel from its own clock. flutter.py designs the code and server.py runs the capture.
 FLUTTER_CHOPS = 32                      # chops in the designed code, half of them open
 FLUTTER_CHOP_MS = 100                   # default chop length; the cell switches in 30 to 70 ms, so shorter chops blur
-FLUTTER_LEAD_MS = 1000                  # panel shut from the play command until the code starts, so gphoto2 has opened the bulb;
-                                        # a guess at gphoto2's start-up, so check a real coded frame has every chop
-FLUTTER_TAIL_MS = 200                   # panel shut after the code until the board reports; the bulb closes after that
+FLUTTER_LEAD_MS = 1000                  # panel shut from the play command until the code starts, so the shutter has opened;
+                                        # a guess at gphoto2's start-up, so check a real coded frame has every chop.
+                                        # The shutter speed has to be at least lead + code
+FLUTTER_TAIL_MS = 200                   # panel shut after the code until the board reports; it stays shut until the shutter closes
 FLUTTER_SEED = 0                        # the random search in flutter.py is repeatable, so every machine designs the same code
 FLUTTER_MAX_S = 60                      # lead + code + tail must fit the board's 16 bit millisecond clock
-BULB_OPEN = "eosremoterelease=Immediate"       # gphoto2 config that opens the shutter with the mode dial on B
-BULB_CLOSE = "eosremoterelease=Release Full"   # and closes it. gphoto2 2.5.28 gives the 60D no bulb widget, so bulb=1 and bulb=0 take no frame
-BULB_DOWNLOAD_S = 8                     # wait for the frame after the bulb closes; a 60D RAW takes a few seconds over USB 2
-IMPULSE_SHUTTER = "1/250"               # default shutter for the impulse baseline, with the mode dial on M
+IMPULSE_SHUTTER = "1/250"               # default shutter for the impulse baseline
 
 # ---- camera -------------------------------------------------------------------------
 GPHOTO_BIN = "gphoto2"

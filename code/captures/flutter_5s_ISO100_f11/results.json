@@ -1,0 +1,217 @@
+{
+ "photos": [
+  {
+   "run": "Run19_100ms_invert",
+   "photo": "01_coded",
+   "blur_px": 475,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 148.4,
+   "as_is": {
+    "mse": 0.00535,
+    "ncc": 0.942,
+    "detail": 0.164
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.00187,
+    "ncc": 0.98,
+    "detail": 0.761
+   },
+   "deblurred_RL40": {
+    "mse": 0.00122,
+    "ncc": 0.987,
+    "detail": 0.779
+   }
+  },
+  {
+   "run": "Run17_box_100ms_invert",
+   "photo": "01_box",
+   "blur_px": 300,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 93.8,
+   "as_is": {
+    "mse": 0.0017,
+    "ncc": 0.98,
+    "detail": 0.61
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.00118,
+    "ncc": 0.986,
+    "detail": 0.633
+   },
+   "deblurred_RL40": {
+    "mse": 0.00113,
+    "ncc": 0.987,
+    "detail": 0.664
+   }
+  },
+  {
+   "run": "Run14_100ms_invert",
+   "photo": "02_coded",
+   "blur_px": 525,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 164.1,
+   "as_is": {
+    "mse": 0.01277,
+    "ncc": 0.87,
+    "detail": -0.008
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.00559,
+    "ncc": 0.948,
+    "detail": 0.404
+   },
+   "deblurred_RL40": {
+    "mse": 0.00494,
+    "ncc": 0.953,
+    "detail": 0.413
+   }
+  },
+  {
+   "run": "Run14_100ms_invert",
+   "photo": "03_box",
+   "blur_px": 250,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 78.1,
+   "as_is": {
+    "mse": 0.00768,
+    "ncc": 0.931,
+    "detail": 0.44
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.00713,
+    "ncc": 0.936,
+    "detail": 0.48
+   },
+   "deblurred_RL40": {
+    "mse": 0.00768,
+    "ncc": 0.931,
+    "detail": 0.424
+   }
+  },
+  {
+   "run": "Run16_100ms_invert",
+   "photo": "01_impulse",
+   "as_is": {
+    "mse": 0.00608,
+    "ncc": 0.938,
+    "detail": 0.758
+   },
+   "smoothed_2px_binned": {
+    "mse": 0.00131,
+    "ncc": 0.987,
+    "detail": 0.804
+   }
+  },
+  {
+   "run": "Run14_100ms_invert",
+   "photo": "01_impulse",
+   "as_is": {
+    "mse": 0.00119,
+    "ncc": 0.988,
+    "detail": 0.946
+   },
+   "smoothed_2px_binned": {
+    "mse": 0.00032,
+    "ncc": 0.997,
+    "detail": 0.952
+   }
+  }
+ ],
+ "raw": {
+  "Run19_100ms_invert_00_reference": {
+   "mean": 0.02095,
+   "std": 0.02044,
+   "p99.9": 0.1345,
+   "clipped": 5.549473332782825e-08
+  },
+  "Run19_100ms_invert_01_coded": {
+   "mean": 0.01011,
+   "std": 0.00908,
+   "p99.9": 0.0592,
+   "clipped": 5.549473332782825e-08
+  },
+  "Run17_box_100ms_invert_00_reference": {
+   "mean": 0.02296,
+   "std": 0.02255,
+   "p99.9": 0.1756,
+   "clipped": 1.109894666556565e-07
+  },
+  "Run17_box_100ms_invert_01_box": {
+   "mean": 0.02311,
+   "std": 0.02244,
+   "p99.9": 0.1869,
+   "clipped": 1.109894666556565e-07
+  },
+  "Run16_100ms_invert_00_reference": {
+   "mean": 0.02173,
+   "std": 0.01927,
+   "p99.9": 0.1211,
+   "clipped": 2.21978933311313e-07
+  },
+  "Run16_100ms_invert_01_impulse": {
+   "mean": 0.00068,
+   "std": 0.00094,
+   "p99.9": 0.0045,
+   "clipped": 0.0
+  },
+  "Run16_100ms_invert_04_dark": {
+   "mean": 6e-05,
+   "std": 0.00102,
+   "p99.9": 0.0022,
+   "clipped": 1.6648419998348477e-07
+  },
+  "Run14_100ms_invert_00_reference": {
+   "mean": 0.05561,
+   "std": 0.0492,
+   "p99.9": 0.365,
+   "clipped": 1.109894666556565e-07
+  },
+  "Run14_100ms_invert_01_impulse": {
+   "mean": 0.0017,
+   "std": 0.00165,
+   "p99.9": 0.0107,
+   "clipped": 0.0
+  },
+  "Run14_100ms_invert_02_coded": {
+   "mean": 0.02678,
+   "std": 0.02155,
+   "p99.9": 0.1265,
+   "clipped": 5.549473332782825e-08
+  },
+  "Run14_100ms_invert_03_box": {
+   "mean": 0.0558,
+   "std": 0.0506,
+   "p99.9": 0.3019,
+   "clipped": 5.549473332782825e-08
+  },
+  "Run14_100ms_invert_04_dark": {
+   "mean": 0.00015,
+   "std": 0.00093,
+   "p99.9": 0.0024,
+   "clipped": 5.549473332782825e-08
+  },
+  "Run8_100ms_invert_03_box": {
+   "mean": 0.08575,
+   "std": 0.07132,
+   "p99.9": 0.4359,
+   "clipped": 1.109894666556565e-07
+  },
+  "Run8_100ms_invert_04_leakage": {
+   "mean": 0.00173,
+   "std": 0.00124,
+   "p99.9": 0.0056,
+   "clipped": 1.109894666556565e-07
+  },
+  "Run8_100ms_invert_05_dark": {
+   "mean": 8e-05,
+   "std": 0.00098,
+   "p99.9": 0.0023,
+   "clipped": 1.109894666556565e-07
+  }
+ },
+ "leak_fraction_run8": 0.0124
+}

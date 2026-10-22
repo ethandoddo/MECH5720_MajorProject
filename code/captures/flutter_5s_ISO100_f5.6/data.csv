@@ -1,0 +1,14 @@
+run,folder,photo,reference_mean,car_speed_px_s,blur_px,speed_from,version,mse,ncc,detail,distance_px,file
+Run2_f5_6,coded_and_box,coded,0.0775,117.2,375,375 px over the 3.2 s code,as is,0.00387,0.954,0.376,404,coded_and_box/Run2_f5_6_100ms_invert_02_coded.cr2
+Run2_f5_6,coded_and_box,coded,0.0775,117.2,375,375 px over the 3.2 s code,deblurred lam 0.05,0.00256,0.97,0.574,404,coded_and_box/Run2_f5_6_100ms_invert_02_coded.cr2
+Run2_f5_6,coded_and_box,coded,0.0775,117.2,375,375 px over the 3.2 s code,deblurred RL40,0.00285,0.966,0.583,404,coded_and_box/Run2_f5_6_100ms_invert_02_coded.cr2
+Run2_f5_6,coded_and_box,coded,0.0775,117.2,375,375 px over the 3.2 s code,best: deblurred lam 0.05,0.00256,0.97,0.574,404,coded_and_box/Run2_f5_6_100ms_invert_02_coded.cr2
+Run2_f5_6,coded_and_box,coded,0.0775,117.2,375,375 px over the 3.2 s code,best: deblurred RL20,0.00278,0.967,0.587,404,coded_and_box/Run2_f5_6_100ms_invert_02_coded.cr2
+Run2_f5_6,coded_and_box,box,0.0775,93.8,300,300 px over the 3.2 s code,as is,0.00223,0.973,0.362,268,coded_and_box/Run2_f5_6_100ms_invert_03_box.cr2
+Run2_f5_6,coded_and_box,box,0.0775,93.8,300,300 px over the 3.2 s code,deblurred lam 0.05,0.0009,0.989,0.72,268,coded_and_box/Run2_f5_6_100ms_invert_03_box.cr2
+Run2_f5_6,coded_and_box,box,0.0775,93.8,300,300 px over the 3.2 s code,deblurred RL40,0.00076,0.991,0.761,268,coded_and_box/Run2_f5_6_100ms_invert_03_box.cr2
+Run2_f5_6,coded_and_box,box,0.0775,93.8,300,300 px over the 3.2 s code,best: deblurred lam 0.02,0.00081,0.99,0.754,268,coded_and_box/Run2_f5_6_100ms_invert_03_box.cr2
+Run2_f5_6,coded_and_box,box,0.0775,93.8,300,300 px over the 3.2 s code,best: deblurred RL40,0.00076,0.991,0.761,268,coded_and_box/Run2_f5_6_100ms_invert_03_box.cr2
+Run1_f5_6,impulse,impulse,0.08872,132.8,13,"Run1_f5_6's coded photo, 425 px over 3.2 s (not kept here)",as is,0.00132,0.988,0.935,844,impulse/Run1_f5_6_100ms_invert_01_impulse.cr2
+Run1_f5_6,impulse,impulse,0.08872,132.8,13,"Run1_f5_6's coded photo, 425 px over 3.2 s (not kept here)",smoothed 8 px,0.00093,0.991,0.942,844,impulse/Run1_f5_6_100ms_invert_01_impulse.cr2
+Run1_f5_6,impulse,impulse,0.08872,132.8,13,"Run1_f5_6's coded photo, 425 px over 3.2 s (not kept here)",best: smoothed 8 px,0.00093,0.991,0.942,844,impulse/Run1_f5_6_100ms_invert_01_impulse.cr2

@@ -1,0 +1,17 @@
+run,folder,photo,light,reference_mean,car_speed_px_s,blur_px,speed_from,version,mse,ncc,detail,file
+Run19,coded,coded,dim,0.02095,148.4,475,475 px over the 3.2 s code,as is,0.00535,0.942,0.164,coded/Run19_100ms_invert_01_coded.cr2
+Run19,coded,coded,dim,0.02095,148.4,475,475 px over the 3.2 s code,deblurred lam 0.05,0.00187,0.98,0.761,coded/Run19_100ms_invert_01_coded.cr2
+Run19,coded,coded,dim,0.02095,148.4,475,475 px over the 3.2 s code,deblurred RL40,0.00122,0.987,0.779,coded/Run19_100ms_invert_01_coded.cr2
+Run17_box,box,box,dim,0.02296,93.8,300,300 px over the 3.2 s code,as is,0.0017,0.98,0.61,box/Run17_box_100ms_invert_01_box.cr2
+Run17_box,box,box,dim,0.02296,93.8,300,300 px over the 3.2 s code,deblurred lam 0.05,0.00118,0.986,0.633,box/Run17_box_100ms_invert_01_box.cr2
+Run17_box,box,box,dim,0.02296,93.8,300,300 px over the 3.2 s code,deblurred RL40,0.00113,0.987,0.664,box/Run17_box_100ms_invert_01_box.cr2
+Run16,impulse_and_dark,impulse,dim,0.02173,156.2,16,"from Run16's coded photo, 500 px over 3.2 s (that photo is deleted)",as is,0.00608,0.938,0.758,impulse_and_dark/Run16_100ms_invert_01_impulse.cr2
+Run16,impulse_and_dark,impulse,dim,0.02173,156.2,16,"from Run16's coded photo, 500 px over 3.2 s (that photo is deleted)",smoothed 8 px,0.00131,0.987,0.804,impulse_and_dark/Run16_100ms_invert_01_impulse.cr2
+Run14,bright_light,coded,bright,0.05561,164.1,525,525 px over the 3.2 s code,as is,0.01277,0.87,-0.008,bright_light/Run14_100ms_invert_02_coded.cr2
+Run14,bright_light,coded,bright,0.05561,164.1,525,525 px over the 3.2 s code,deblurred lam 0.05,0.00559,0.948,0.404,bright_light/Run14_100ms_invert_02_coded.cr2
+Run14,bright_light,coded,bright,0.05561,164.1,525,525 px over the 3.2 s code,deblurred RL40,0.00494,0.953,0.413,bright_light/Run14_100ms_invert_02_coded.cr2
+Run14,bright_light,box,bright,0.05561,78.1,250,250 px over the 3.2 s code,as is,0.00768,0.931,0.44,bright_light/Run14_100ms_invert_03_box.cr2
+Run14,bright_light,box,bright,0.05561,78.1,250,250 px over the 3.2 s code,deblurred lam 0.05,0.00713,0.936,0.48,bright_light/Run14_100ms_invert_03_box.cr2
+Run14,bright_light,box,bright,0.05561,78.1,250,250 px over the 3.2 s code,deblurred RL40,0.00768,0.931,0.424,bright_light/Run14_100ms_invert_03_box.cr2
+Run14,bright_light,impulse,bright,0.05561,164.1,16,from Run14's coded photo,as is,0.00119,0.988,0.946,bright_light/Run14_100ms_invert_01_impulse.cr2
+Run14,bright_light,impulse,bright,0.05561,164.1,16,from Run14's coded photo,smoothed 8 px,0.00032,0.997,0.952,bright_light/Run14_100ms_invert_01_impulse.cr2

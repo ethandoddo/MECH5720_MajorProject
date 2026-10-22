@@ -103,9 +103,12 @@ def shape_png(path, diameter_mm=None, image_scale=1.0):
 def open_pixels(img):
     """True where light passes. In an image with transparency, such as the sprites, the
     transparent pixels are open, like clear glass, and every opaque pixel is shut whatever its
-    colour, black or grey. In an image with no transparency white is open"""
+    colour, black or grey. In an image with no transparency white is open. A screenshot often
+    carries an alpha channel with every pixel opaque, and that counts as no transparency"""
     if img.has_transparency_data:
-        return np.asarray(img.convert("RGBA"))[..., 3] <= 127
+        clear = np.asarray(img.convert("RGBA"))[..., 3] <= 127
+        if clear.any():
+            return clear
     return np.asarray(img.convert("L")) > 127
 
 
