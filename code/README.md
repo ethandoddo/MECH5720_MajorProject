@@ -120,7 +120,8 @@ The buttons per tab, in the order to run them:
    Turn that into mm/s or rpm with the table under Target speed below and set the
    target's motor to it.
 4. Set the shutter speed on M to at least Lead + code, 5 s for the defaults. The tab says
-   in red when it is too short. Tick all six captures, set Repeats to 1 or 2 and press Run.
+   in red when it is too short. Tick all six captures, or reference, impulse, coded and box
+   for the light-level runs of step 7. Set Repeats to 1 or 2 and press Run.
    Press Run again for more. Pop-ups say what to set up and wait for Continue: the target
    still for the reference, then moving for the impulse, coded, box and leakage frames,
    which run straight through, then lens cap on for the darks and off at the end. The dial
@@ -516,7 +517,9 @@ levels. The aperture sets the light, so the steps are exact: f/5.6, f/11 and f/2
 ISO 100, a factor of 4 apart. The lamps, focus, zoom and track stay where they are. Each run
 ticks reference, impulse, coded and box, with the designed code, Chop 100, Lead 1000, Tail
 200, Invert and an Impulse shutter of 1/10. One leakage and one dark photo per aperture are
-enough.
+enough. Drive the car left at about 100 px/s, which gives about 320 px of blur over the code,
+and start it with the "95" near the right edge of the frame. The impulse, coded and box
+photos take about 18 s, so the car travels about 1,800 px and stays in view.
 
 [flutter_score.py](flutter_score.py) checks and scores a run. Run it from the code folder
 with the run's Name:
