@@ -1,0 +1,85 @@
+{
+  "camera": "gphoto",
+  "diameter_mm": 27.77777777777778,
+  "display": "arduino",
+  "done": true,
+  "error": null,
+  "frames": [
+    {
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "downloaded_s": 10.3926,
+      "file": "00_reference.cr2",
+      "files": [
+        "00_reference.cr2",
+        "00_reference_trace.json",
+        "00_reference.dng"
+      ],
+      "fired_s": 2.8075,
+      "index": 0,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 11111111111111111111111111111111",
+      "shown_s": 2.807,
+      "tag": "reference",
+      "local": "captures/flutter/Run19_100ms_invert_00_reference"
+    },
+    {
+      "chop_ms": 100,
+      "code": "10001101101001011000001111010101",
+      "downloaded_s": 31.8867,
+      "file": "01_coded.cr2",
+      "files": [
+        "01_coded.cr2",
+        "01_coded_trace.json",
+        "01_coded.dng"
+      ],
+      "fired_s": 24.3478,
+      "index": 1,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 10001101101001011000001111010101",
+      "shown_s": 24.3474,
+      "tag": "coded",
+      "local": "captures/flutter/Run19_100ms_invert_01_coded"
+    }
+  ],
+  "image_scale": 1.0,
+  "invert": false,
+  "label": "Run19_100ms_invert",
+  "patterns": [
+    "code 11111111111111111111111111111111",
+    "code 10001101101001011000001111010101"
+  ],
+  "pitch_mm": 0.218984375,
+  "rotation_deg": 0.0,
+  "session": "20261022_181447_Run19_100ms_invert",
+  "settle_s": 0.3,
+  "started": "2026-10-22T18:14:47",
+  "steps": [
+    {
+      "camera": {
+        "shutterspeed": "5"
+      },
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "lead_ms": 1000,
+      "method": "invert",
+      "prompt": "Step 1 of 2: Reference photo\n\nWhat to do:\n  1. Have the target standing still.\n  2. Check the mode dial is on M.\n\nWhat happens: The camera takes 1 reference photo at 5 s with the panel open for 3.2 s. With the target still, this is the sharp photo the deblurred results are checked against.\n\nPress Continue when ready.",
+      "tag": "reference",
+      "tail_ms": 200
+    },
+    {
+      "camera": {
+        "shutterspeed": "5"
+      },
+      "chop_ms": 100,
+      "code": "10001101101001011000001111010101",
+      "lead_ms": 1000,
+      "method": "invert",
+      "prompt": "Step 2 of 2: Moving photos\n\nWhat to do:\n  1. Set the target moving at 62.5 px/s and keep it moving until the dark photos.\n\nWhat happens: The camera takes these without stopping:\n  - 1 coded photo at 5 s: the panel stays black for 1.0 s, flickers the code for 3.2 s, then stays black. The target blurs in the code's on and off pattern, which the deblur can undo.\n\nThat takes about 8 s, and the target travels about 500 px. Start it near the edge of the frame it moves away from, so it stays in view.\n\nPress Continue once the target moves steadily.",
+      "tag": "coded",
+      "tail_ms": 200
+    }
+  ]
+}

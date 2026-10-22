@@ -1,0 +1,14 @@
+run,folder,photo,reference_mean,car_speed_px_s,blur_px,speed_from,version,mse,ncc,detail,file
+Run3_f22,coded_and_impulse,coded,0.0071,78.1,250,250 px over the 3.2 s code,as is,0.00308,0.967,0.287,coded_and_impulse/Run3_f22_100ms_invert_02_coded.cr2
+Run3_f22,coded_and_impulse,coded,0.0071,78.1,250,250 px over the 3.2 s code,deblurred lam 0.05,0.00324,0.965,0.461,coded_and_impulse/Run3_f22_100ms_invert_02_coded.cr2
+Run3_f22,coded_and_impulse,coded,0.0071,78.1,250,250 px over the 3.2 s code,deblurred RL40,0.005,0.946,0.426,coded_and_impulse/Run3_f22_100ms_invert_02_coded.cr2
+Run3_f22,coded_and_impulse,coded,0.0071,78.1,250,250 px over the 3.2 s code,best: deblurred lam 0.5,0.00202,0.978,0.525,coded_and_impulse/Run3_f22_100ms_invert_02_coded.cr2
+Run3_f22,coded_and_impulse,coded,0.0071,78.1,250,250 px over the 3.2 s code,best: deblurred RL5,0.00215,0.977,0.546,coded_and_impulse/Run3_f22_100ms_invert_02_coded.cr2
+Run2_f22,box,box,0.00649,78.1,250,250 px over the 3.2 s code,as is,0.00178,0.979,0.4,box/Run2_f22_100ms_invert_03_box.cr2
+Run2_f22,box,box,0.00649,78.1,250,250 px over the 3.2 s code,deblurred lam 0.05,0.00117,0.986,0.604,box/Run2_f22_100ms_invert_03_box.cr2
+Run2_f22,box,box,0.00649,78.1,250,250 px over the 3.2 s code,deblurred RL40,0.00121,0.986,0.626,box/Run2_f22_100ms_invert_03_box.cr2
+Run2_f22,box,box,0.00649,78.1,250,250 px over the 3.2 s code,best: deblurred lam 0.05,0.00117,0.986,0.604,box/Run2_f22_100ms_invert_03_box.cr2
+Run2_f22,box,box,0.00649,78.1,250,250 px over the 3.2 s code,best: deblurred RL20,0.00114,0.986,0.611,box/Run2_f22_100ms_invert_03_box.cr2
+Run3_f22,coded_and_impulse,impulse,0.0071,78.1,8,from Run3_f22's coded photo,as is,0.02653,0.672,0.306,coded_and_impulse/Run3_f22_100ms_invert_01_impulse.cr2
+Run3_f22,coded_and_impulse,impulse,0.0071,78.1,8,from Run3_f22's coded photo,smoothed 8 px,0.00687,0.926,0.361,coded_and_impulse/Run3_f22_100ms_invert_01_impulse.cr2
+Run3_f22,coded_and_impulse,impulse,0.0071,78.1,8,from Run3_f22's coded photo,best: smoothed 16 px,0.00538,0.943,0.412,coded_and_impulse/Run3_f22_100ms_invert_01_impulse.cr2

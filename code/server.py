@@ -37,9 +37,10 @@ Endpoints:
                                 pauses with the prompt until POST /sequence/go, sets the
                                 camera, then shows and fires. {"code": "1011...", "chop_ms":
                                 100, "lead_ms": 1000, "tail_ms": 200, "method": "invert",
-                                "tag": "coded"} is a flutter shutter step: the
-                                panel plays the code while the camera sits open in bulb, and
-                                the trace lands beside the frame. {"prompt": "..."} alone
+                                "tag": "coded"} is a flutter shutter step: the panel plays
+                                the code during one photo at the shutter speed on M, at
+                                least lead + code, and the trace lands beside the frame. It
+                                takes "camera" too. {"prompt": "..."} alone
                                 pauses and captures nothing
   POST /sequence/go            let a paused job carry on
   POST /sequence/stop          stop the running job after the current step
@@ -264,21 +265,31 @@ def still_step(i, step, d, t0, settle, diameter_mm, image_scale, rotation_deg):
     }
 
 
-def bulb_step(i, step, d, t0, check_camera):
-    """the panel plays the code while the camera sits open in bulb mode. The sketch's trace
-    lands beside the frame as <index>_<tag>_trace.json and in the frame's file list"""
+def code_step(i, step, d, t0, shutter):
+    """the panel plays the code during one photo at the camera's shutter speed, dial on M. The
+    shutter opens during the lead, so it has to stay open for at least lead + code. shutter is
+    the body's shutter speed in s from the frame before, None to read it again. Returns the
+    frame and the shutter speed. The sketch's trace lands beside the frame as
+    <index>_<tag>_trace.json and in the frame's file list"""
     tag = step["tag"]
     code = flutter.parse(step["code"])
     display, camera = state["display"], state["camera"]
     capture = step.get("capture", True)
-    if capture and check_camera:
-        camera.ensure_bulb()
-    total_s = flutter.total_ms(len(code), step["chop_ms"], step["lead_ms"], step["tail_ms"]) / 1000
+    if capture:
+        if step.get("camera"):
+            camera.configure({k: str(v) for k, v in step["camera"].items()})
+            shutter = None
+        if shutter is None:
+            shutter = camera.shutter_s()
+        need = flutter.min_shutter_s(len(code), step["chop_ms"], step["lead_ms"])
+        if shutter < need:
+            raise CameraError(f"the shutter speed is {shutter:g} s, shorter than lead + code {need:g} s: "
+                              f"set {need:g} s or longer on M")
     show("black")
     t_play = display.play_code(code, step["chop_ms"], step["lead_ms"], step["tail_ms"], step["method"])
     job, t_fire, stem = None, None, d / f"{i:02d}_{tag}"
     if capture:
-        job = camera.bulb_start(stem, total_s)
+        job = camera.capture_start(stem)
         t_fire = time.monotonic()
     try:
         trace = display.read_play()
@@ -290,19 +301,19 @@ def bulb_step(i, step, d, t0, check_camera):
     trace.update({
         "code": flutter.to_text(code), "chop_ms": step["chop_ms"], "lead_ms": step["lead_ms"],
         "tail_ms": step["tail_ms"], "method": step["method"],
-        "play_s": round(t_play - t0, 4), "bulb_s": None if t_fire is None else round(t_fire - t0, 4),
-        "bulb_wait_s": total_s if capture else None,
+        "play_s": round(t_play - t0, 4), "fired_s": None if t_fire is None else round(t_fire - t0, 4),
+        "shutter_s": shutter if capture else None,
     })
     trace_path = d / f"{i:02d}_{tag}_trace.json"
     trace_path.write_text(json.dumps(trace))
     display.last.save(d / f"{i:02d}_{tag}_panel.png")
     return {
-        "index": i, "pattern": f"code {trace['code']}", "tag": tag, "kind": "bulb",
+        "index": i, "pattern": f"code {trace['code']}", "tag": tag, "kind": "code",
         "code": trace["code"], "chop_ms": step["chop_ms"], "method": step["method"],
         "file": files[0].name if files else None, "files": [f.name for f in files] + [trace_path.name],
         "shown_s": round(t_play - t0, 4), "fired_s": None if t_fire is None else round(t_fire - t0, 4),
         "downloaded_s": round(t_done - t0, 4),
-    }
+    }, shutter
 
 
 def run_sequence(steps, d, settle, diameter_mm, image_scale, rotation_deg):
@@ -313,19 +324,18 @@ def run_sequence(steps, d, settle, diameter_mm, image_scale, rotation_deg):
     with lock:
         was_live = live_pause()      # one pause for the whole sequence keeps the frame spacing tight
         try:
-            prev_bulb = False
+            shutter = None      # the body's shutter speed, read again after a prompt or a still frame may have changed it
             for i, step in enumerate(steps):
                 job["index"] = i
                 check_stop()
                 if step.get("prompt"):
                     wait_for_go(step["prompt"])
+                    shutter = None
                 if "code" in step:
-                    # a prompt or a still step may have moved the mode dial, so ask the body again
-                    frame = bulb_step(i, step, d, t0, check_camera=not prev_bulb or bool(step.get("prompt")))
-                    prev_bulb = True
+                    frame, shutter = code_step(i, step, d, t0, shutter)
                 elif "pattern" in step:
                     frame = still_step(i, step, d, t0, settle, diameter_mm, image_scale, rotation_deg)
-                    prev_bulb = False
+                    shutter = None
                 else:
                     continue
                 manifest["frames"].append(frame)

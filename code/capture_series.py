@@ -11,7 +11,7 @@ server.py is running, or point --host at the machine that runs it.
   python capture_series.py --patterns open ~/star.png ~/walk.gif open --label bokeh
   python capture_series.py --play ~/walk.gif --speed 2
   python capture_series.py --stop
-  python capture_series.py --code designed --chop 100 --label flutter      # one coded bulb frame
+  python capture_series.py --code designed --chop 100 --label flutter      # one coded frame on M
   python capture_series.py --code 1011001 --chop 200 --no-capture          # play it, trace only
   python capture_series.py --go                                            # a paused job carries on
   python capture_series.py --abort                                         # stop the running job
@@ -19,10 +19,10 @@ server.py is running, or point --host at the machine that runs it.
 A sequence runs inside the server and the files come back to --outdir named
 <label>_<index>_<pattern>.<ext> with the manifest beside them. A GIF in --patterns gives
 one frame per GIF frame, and an image path is named by its file stem, walk_f03 for frame
-3 of walk.gif. --code plays a flutter shutter code on the panel while the camera sits
-open in bulb mode, "designed" for the code flutter.py designs, and the trace of switch
-times comes back as <label>_00_code.json. The Experiments window in camview_capture.py builds
-the full flutter set with its baselines.
+3 of walk.gif. --code plays a flutter shutter code on the panel during one photo at the
+shutter speed on M, which has to be at least lead + code. "designed" is the code
+flutter.py designs, and the trace of switch times comes back as <label>_00_code.json.
+The Experiments window in camview_capture.py builds the full flutter set with its baselines.
 
 Requires: requests
 """
@@ -91,7 +91,7 @@ def main():
     ap.add_argument("--image-scale", type=float, default=1.0,
                     help="PNG and GIF size against the pupil: 1 = longest side fills it, 0.71 = fits inside the circle")
     ap.add_argument("--rotate", type=float, default=0.0, help="turn the pattern this many degrees anticlockwise")
-    ap.add_argument("--code", help="flutter shutter code of 0s and 1s, or 'designed'; plays it in one bulb frame")
+    ap.add_argument("--code", help="flutter shutter code of 0s and 1s, or 'designed'; plays it in one frame on M")
     ap.add_argument("--chop", type=int, default=None, help="with --code: chop length in ms, default from config")
     ap.add_argument("--method", choices=["invert", "fill"], default="invert", help="with --code: how the panel switches")
     ap.add_argument("--no-capture", action="store_true", help="with --code: play it and record the trace, no camera")

@@ -1,0 +1,200 @@
+{
+  "camera": "gphoto",
+  "diameter_mm": 27.77777777777778,
+  "display": "arduino",
+  "done": true,
+  "error": null,
+  "frames": [
+    {
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "downloaded_s": 11.1304,
+      "file": "00_reference.cr2",
+      "files": [
+        "00_reference.cr2",
+        "00_reference_trace.json",
+        "00_reference.dng"
+      ],
+      "fired_s": 3.5491,
+      "index": 0,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 11111111111111111111111111111111",
+      "shown_s": 3.549,
+      "tag": "reference",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_00_reference"
+    },
+    {
+      "downloaded_s": 22.8943,
+      "file": "01_impulse.cr2",
+      "files": [
+        "01_impulse.cr2",
+        "01_impulse.dng"
+      ],
+      "fired_s": 20.7294,
+      "index": 1,
+      "kind": "still",
+      "pattern": "white",
+      "shown_s": 20.4293,
+      "tag": "impulse",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_01_impulse"
+    },
+    {
+      "chop_ms": 100,
+      "code": "10001101101001011000001111010101",
+      "downloaded_s": 31.5927,
+      "file": "02_coded.cr2",
+      "files": [
+        "02_coded.cr2",
+        "02_coded_trace.json",
+        "02_coded.dng"
+      ],
+      "fired_s": 24.0375,
+      "index": 2,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 10001101101001011000001111010101",
+      "shown_s": 24.0372,
+      "tag": "coded",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_02_coded"
+    },
+    {
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "downloaded_s": 39.5255,
+      "file": "03_box.cr2",
+      "files": [
+        "03_box.cr2",
+        "03_box_trace.json",
+        "03_box.dng"
+      ],
+      "fired_s": 31.9337,
+      "index": 3,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 11111111111111111111111111111111",
+      "shown_s": 31.9335,
+      "tag": "box",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_03_box"
+    },
+    {
+      "chop_ms": 100,
+      "code": "00000000000000000000000000000000",
+      "downloaded_s": 47.39,
+      "file": "04_leakage.cr2",
+      "files": [
+        "04_leakage.cr2",
+        "04_leakage_trace.json",
+        "04_leakage.dng"
+      ],
+      "fired_s": 39.8654,
+      "index": 4,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 00000000000000000000000000000000",
+      "shown_s": 39.8651,
+      "tag": "leakage",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_04_leakage"
+    },
+    {
+      "chop_ms": 100,
+      "code": "00000000000000000000000000000000",
+      "downloaded_s": 63.883,
+      "file": "05_dark.cr2",
+      "files": [
+        "05_dark.cr2",
+        "05_dark_trace.json",
+        "05_dark.dng"
+      ],
+      "fired_s": 56.3665,
+      "index": 5,
+      "kind": "code",
+      "method": "invert",
+      "pattern": "code 00000000000000000000000000000000",
+      "shown_s": 56.366,
+      "tag": "dark",
+      "local": "captures/flutter/Run1_f5_6_100ms_invert_05_dark"
+    }
+  ],
+  "image_scale": 1.0,
+  "invert": false,
+  "label": "Run1_f5_6_100ms_invert",
+  "patterns": [
+    "code 11111111111111111111111111111111",
+    "white",
+    "code 10001101101001011000001111010101",
+    "code 11111111111111111111111111111111",
+    "code 00000000000000000000000000000000",
+    "code 00000000000000000000000000000000",
+    null
+  ],
+  "pitch_mm": 0.218984375,
+  "rotation_deg": 0.0,
+  "session": "20261022_201029_Run1_f5_6_100ms_invert",
+  "settle_s": 0.3,
+  "started": "2026-10-22T20:10:29",
+  "steps": [
+    {
+      "camera": {
+        "shutterspeed": "5"
+      },
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "lead_ms": 1000,
+      "method": "invert",
+      "prompt": "Step 1 of 3: Reference photo\n\nWhat to do:\n  1. Have the target standing still.\n  2. Check the mode dial is on M.\n\nWhat happens: The camera takes 1 reference photo at 5 s with the panel open for 3.2 s. With the target still, this is the sharp photo the deblurred results are checked against.\n\nPress Continue when ready.",
+      "tag": "reference",
+      "tail_ms": 200
+    },
+    {
+      "camera": {
+        "shutterspeed": "1/10"
+      },
+      "pattern": "white",
+      "prompt": "Step 2 of 3: Moving photos\n\nWhat to do:\n  1. Set the target moving at 62.5 px/s and keep it moving until the dark photos.\n\nWhat happens: The camera takes these without stopping:\n  - 1 impulse photo at 1/10 s with the panel white: sharp but dark, the short exposure to compare with.\n  - 1 coded photo at 5 s: the panel stays black for 1.0 s, flickers the code for 3.2 s, then stays black. The target blurs in the code's on and off pattern, which the deblur can undo.\n  - 1 box photo at 5 s with the panel open for the code's 3.2 s, an ordinary long exposure that comes out as a plain smear.\n  - 1 leakage photo at 5 s with the panel black the whole time, to measure the light the shut panel lets through.\n\nThat takes about 25 s, and the target travels about 1,600 px. Start it near the edge of the frame it moves away from, so it stays in view.\n\nPress Continue once the target moves steadily.",
+      "tag": "impulse"
+    },
+    {
+      "camera": {
+        "shutterspeed": "5"
+      },
+      "chop_ms": 100,
+      "code": "10001101101001011000001111010101",
+      "lead_ms": 1000,
+      "method": "invert",
+      "tag": "coded",
+      "tail_ms": 200
+    },
+    {
+      "chop_ms": 100,
+      "code": "11111111111111111111111111111111",
+      "lead_ms": 1000,
+      "method": "invert",
+      "tag": "box",
+      "tail_ms": 200
+    },
+    {
+      "chop_ms": 100,
+      "code": "00000000000000000000000000000000",
+      "lead_ms": 1000,
+      "method": "invert",
+      "tag": "leakage",
+      "tail_ms": 200
+    },
+    {
+      "camera": {
+        "shutterspeed": "5"
+      },
+      "chop_ms": 100,
+      "code": "00000000000000000000000000000000",
+      "lead_ms": 1000,
+      "method": "invert",
+      "prompt": "Step 3 of 3: Dark photo\n\nWhat to do:\n  1. Stop the target.\n  2. Put the lens cap on.\n\nWhat happens: The camera takes 1 dark photo at 5 s with the panel black and no light getting in. This measures the camera's own noise.\n\nPress Continue when ready.",
+      "tag": "dark",
+      "tail_ms": 200
+    },
+    {
+      "prompt": "Last step: take the lens cap off\n\nAll the photos are taken. Take the lens cap off, then press Continue to finish and download them."
+    }
+  ]
+}

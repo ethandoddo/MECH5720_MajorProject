@@ -1,7 +1,7 @@
 """Flutter shutter codes, after Raskar, Agrawal and Tumblin, SIGGRAPH 2006.
 
 A code is a list of 0s and 1s, one per chop. The board plays it on the panel from its
-own clock while the camera sits open in bulb mode, so the panel is the shutter. A target
+own clock during one photo on M, so the panel is the shutter. A target
 that moves at a steady speed then blurs by the code stretched along its motion. A good
 code keeps every spatial frequency of that blur above zero, so least squares can undo it.
 A box exposure of the same length has zeros, which is why its deblurred image shows bands.
@@ -49,7 +49,7 @@ def box(n):
 
 
 def shut(n):
-    """every chop shut: the leakage and dark frames, which keep the bulb timing of a coded frame"""
+    """every chop shut: the leakage and dark frames, which keep the timing of a coded frame"""
     return [0] * n
 
 
@@ -105,6 +105,25 @@ def check_timing(n, chop_ms, lead_ms, tail_ms):
     if t > cfg.FLUTTER_MAX_S * 1000:
         raise ValueError(f"lead + code + tail is {t / 1000:.1f} s, over the {cfg.FLUTTER_MAX_S} s limit")
     return t
+
+
+def shutter_s(text):
+    """a shutter speed as gphoto2 names it, "1/250", "0.5" or "5", in seconds; None for "bulb"
+    or anything else that is not a time"""
+    text = str(text or "").strip().rstrip('s"')
+    try:
+        if "/" in text:
+            a, b = text.split("/", 1)
+            return float(a) / float(b)
+        return float(text)
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def min_shutter_s(n, chop_ms, lead_ms):
+    """the shortest shutter speed that holds the whole code: the shutter opens during the lead,
+    so it has to stay open for lead + code from the play command"""
+    return (int(lead_ms) + n * int(chop_ms)) / 1000
 
 
 def target_speed(blur_px, n, chop_ms):

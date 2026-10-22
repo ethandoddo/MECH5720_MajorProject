@@ -9,7 +9,7 @@ and the flutter shutter. `capture_series.py` does the same from the command line
 scripted runs. A sequence of patterns and frames runs inside the server in its own
 thread, so the shutter fires a fixed settle time after each pattern lands. The clients
 poll for progress. For the flutter shutter the board plays a code on the panel from its
-own clock while the camera sits open in bulb mode, so the panel is the shutter.
+own clock during one photo on M, so the panel is the shutter.
 
 The EOS 60D streams live view over USB to the camera view in the window. One process owns
 the USB link, so the stream pauses around each capture and comes back afterwards. With
@@ -26,11 +26,13 @@ window turns it off too. The server terminal says why it stopped.
 | [camview_capture.py](camview_capture.py) | The main driver. Camera view, panel view, controls for patterns, camera settings, single frames and sequences, plus the Experiments window |
 | [capture_series.py](capture_series.py) | Command line client for scripted runs |
 | [server.py](server.py) | Flask server that owns the panel and the camera |
-| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences, the flutter shutter and bulb settings |
+| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences and the flutter shutter settings |
 | [patterns.py](patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `masks/*.txt` grid, `scan0`..`scan8`, `scan5_0`..`scan5_24` for a 5 x 5 scan, any PNG or GIF frame. `python patterns.py` writes the named ones to `out/patterns/` |
 | [flutter.py](flutter.py) | Designs the flutter shutter code and checks its timing. `python flutter.py` prints the default code and its score |
+| [flutter_deblur.py](flutter_deblur.py) | Deblurs a flutter run's coded frame with the code from its trace and scores it against the reference frames |
+| [flutter_score.py](flutter_score.py) | Checks a flutter run and scores its coded, box and impulse photos against the reference, with the close-up pictures. Uses `flutter_95_template.npy` to find the "95" |
 | [display.py](display.py) | `arduino` for the panel, `window` for a window on the laptop, `st7735` for the panel on a Raspberry Pi, `null` for tests. `python display.py` prints what each pattern costs on the serial link |
-| [camera.py](camera.py) | `gphoto` for the 60D, stills and bulb exposures. `dummy` writes the shown pattern so everything runs with no camera |
+| [camera.py](camera.py) | `gphoto` for the 60D, stills and the shutter speed check for the flutter frames. `dummy` writes the shown pattern so everything runs with no camera |
 | [liveview.py](liveview.py) | Live view stream from `gphoto2 --capture-movie`. The dummy version streams the panel image |
 | [preview.py](preview.py) | Pulls the embedded JPEG out of a CR2 for the camera view |
 | [show.py](show.py) | Show one pattern with no server |
@@ -117,15 +119,19 @@ The buttons per tab, in the order to run them:
 3. Set Blur px to 100. The line under it gives the target speed in px/s for the chop.
    Turn that into mm/s or rpm with the table under Target speed below and set the
    target's motor to it.
-4. Tick all six captures, set Repeats to 5 and press Run. A pop-up before each capture says
-   what to set up and what the frame is for. It waits for Continue. In order: dial on M
-   and the target moving for the impulse frames, dial on B for coded, box and leakage,
-   target stopped for the reference, lens cap on for the darks, lens cap off at the end.
+4. Set the shutter speed on M to at least Lead + code, 5 s for the defaults. The tab says
+   in red when it is too short. Tick all six captures, or reference, impulse, coded and box
+   for the light-level runs of step 7. Set Repeats to 1 or 2 and press Run.
+   Press Run again for more. Pop-ups say what to set up and wait for Continue: the target
+   still for the reference, then moving for the impulse, coded, box and leakage frames,
+   which run straight through, then lens cap on for the darks and off at the end. The dial
+   stays on M.
 5. Repeat step 4 with Frame write at 100 ms and at 200 ms.
 6. Repeat step 4 with Invert at 25, 50 and 200 ms, resetting the target speed each time.
-7. Repeat step 4 at 100 ms at the other light levels.
+7. Repeat step 4 at 100 ms at the other light levels. Set the light with the aperture, not
+   the lamps: f/5.6, f/11 and f/22 at 5 s and ISO 100. See Light levels and scoring below.
 
-The same from the command line, one coded bulb frame at a time:
+The same from the command line, one coded frame at a time at the shutter speed set on M:
 
 ```
 python capture_series.py --code designed --chop 100 --no-capture --label switch --outdir captures/flutter
@@ -162,8 +168,8 @@ connection after plugging in the Arduino can fail. Nothing here needs it. Remove
 Camera: put the 60D's mode dial on M, switch the lens to MF, set the quality to RAW+JPEG
 on the body, turn off auto power off and long exposure noise reduction in the menu and
 plug the USB cable into the laptop. RAW+JPEG gives a CR2 for processing and a JPEG the
-camera view shows at once. The flutter Run needs the dial on M for its impulse frames and
-on B for the rest. Its pop-ups say when to turn it. Check the camera:
+camera view shows at once. The flutter Run takes every frame on M too, at a shutter speed
+of at least Lead + code. Check the camera:
 
 ```
 gphoto2 --auto-detect
@@ -309,7 +315,7 @@ python capture_series.py --sequence scan --label 1000mm --outdir captures/refocu
 python capture_series.py --patterns open star.png walk.gif open --label bokeh
 python capture_series.py --play walk.gif --speed 2
 python capture_series.py --stop
-python capture_series.py --code designed --chop 100 --label flutter      # one coded bulb frame
+python capture_series.py --code designed --chop 100 --label flutter      # one coded frame on M
 python capture_series.py --code 1011001 --chop 50 --no-capture           # play it and record the trace
 python capture_series.py --go                                            # a paused job carries on
 python capture_series.py --abort                                         # stop the running job
@@ -375,11 +381,16 @@ Settle, Pupil mm, Image size and Rotation set in Controls. A step that needs a h
 card swap or the lens cap, pauses the job and shows the prompt at the top of the window
 with Continue and Stop beside it.
 
-- **Depth.** PSF set is open, Zhou A, Zhou B, Levin and black for a point source. Pair is
-  open, Zhou A, Zhou B, open for a textured target. Singles takes each coded pattern twice,
-  so one pattern gets the pair's exposure. Card pair takes the same four frames through
+- **Depth.** PSF set is open, pattern A, pattern B, Levin and black for a point source. Pair
+  is open, A, B, open for a textured target. Singles takes each coded pattern twice, so one
+  pattern gets the pair's exposure. Card pair takes the same four frames through
   hand-fitted cards with the panel white, pausing before each card, the baseline for what
-  the panel costs.
+  the panel costs. A and B start as Zhou A and Zhou B. Type another mask name from
+  `masks/` or pick a PNG or GIF with Browse A... and Browse B.... Image size in Controls
+  sizes an image. The labels read `depth1000mm_pair`, so Gate 2 finds the distance. A pair
+  other than the Zhou one adds its names, as in `depth1000mm_pair_star_heart`, so it never
+  overwrites the Zhou files. Gates 1 and 3 need a mask file for each pattern, so they only
+  judge mask names, not images.
 - **Refocus.** Scan 3x3 and Scan 5x5 take open, every tile, black and open. The f/5.6
   frame is one open disc 8.9 mm wide, the depth of field the 3x3 refocus reaches with no
   scan, the one-frame baseline. Lens focus pauses for you to focus the lens on the target
@@ -393,10 +404,11 @@ with Continue and Stop beside it.
 
 The flutter shutter of Raskar, Agrawal and Tumblin opens and closes the shutter in a
 binary code during one exposure, so the blur of a moving target stays invertible. On this
-rig the panel is the shutter. The camera sits open in bulb mode with the panel black, the
-board plays the code on the panel from its own clock, the panel goes black again and
-then the bulb closes. The curtains move in the dark, so every row of the sensor sees the
-same code and the 60D's 1/250 s curtain travel does not matter.
+rig the panel is the shutter. The camera takes one photo on M at its own shutter speed.
+The panel is black when the shutter opens, the board plays the code on the panel from
+its own clock, and the panel stays black until the shutter closes. The curtains move in
+the dark, so every row of the sensor sees the same code and the 60D's 1/250 s curtain
+travel does not matter.
 
 The board switches the panel one of two ways. Invert sends the controller's one-byte
 invert command, which flips every pixel in the time the liquid crystal takes, 15 to
@@ -413,37 +425,50 @@ its text. A box of the same length scores 0 and that code 0.075. The Custom fiel
 any code of up to 64 chops.
 
 The Flutter tab builds the capture set. Chop ms sets the chop. Lead ms is how long the
-panel stays black before the code, so that gphoto2 has opened the bulb by then. Its
-default of 1 s is a guess at gphoto2's start-up time. Check that the first real coded
+panel stays black before the code, so that the shutter has opened by then. Its default
+of 1 s is a guess at how long gphoto2 takes to fire. Check that the first real coded
 frame has every chop. A small bright dot on the target streaks in the code's on and off
-pattern. If the start of that pattern is missing, Lead is too short. Tail ms is how
-long the panel stays black after the code, 200 ms by default. Blur px gives the target
-speed to set for that much blur over the code. Tick the captures to take:
+pattern. If the start of that pattern is missing, Lead is too short. If the end is
+missing, the shutter speed is too short. Tail ms is how long the panel stays black after
+the code, 200 ms by default. Blur px gives the target speed to set for that much blur
+over the code.
+
+Every frame is on M. The shutter opens during Lead, so the shutter speed has to be at
+least Lead + code: 4.2 s for the default 1 s and 32 chops of 100 ms, which is 5 s on the
+60D. The panel is black for the rest, which adds only leakage. The tab shows the shutter
+speed and says in red when it is too short. Run then does not start. Tick the captures
+to take:
 
 | Capture | Panel | Camera | Target |
 | --- | --- | --- | --- |
-| impulse | open | the Impulse shutter speed, dial on M | moving |
-| coded | plays the code | bulb, dial on B | moving |
-| box | open for the code's length | bulb | moving |
-| leakage | black for the code's length | bulb | moving |
-| reference | open for the code's length | bulb | stopped |
-| dark | black for the code's length | bulb, lens cap on | any |
+| reference | open for the code's length | the shutter speed under Photo | still |
+| impulse | open | the Impulse shutter speed | moving |
+| coded | plays the code | the shutter speed under Photo | moving |
+| box | open for the code's length | the same | moving |
+| leakage | black for the code's length | the same | moving |
+| dark | black for the code's length | the same, lens cap on | any |
 
-Run takes them in that order, Repeats times each, so the dial turns once, from M to B. A
-pop-up before the first frame of each capture says what to change on the dial, target or
-cap and what the frame is for. It waits for Continue. The repeats of that capture then
-run straight on. Box and leakage keep the bulb timing of the coded frame, so the three
-frames collect the same stray light.
+Run takes them in that order, Repeats times each. A pop-up says what to change at the rig
+and what the frames are for, and waits for Continue, three times: before the reference,
+before the moving frames and before the darks. The impulse, coded, box and leakage frames
+then run straight through with their repeats, so the target never has to stop. The car
+keeps moving between frames too, about 7.5 s for each 5 s frame, so their pop-up says how
+far it travels. Start it near the edge of the frame it moves away from. With all six
+ticked at 62.5 px/s the car travels about 1,600 px with Repeats 1 and 3,200 px with
+Repeats 2. Box and
+leakage keep the timing of the coded frame, so the three frames collect the same stray
+light.
 
 LCD only flutter shutter plays the code on the panel Repeats times with no camera. Use it
 to watch the panel switch and to check Invert before anything else.
 
 Capture takes a plain photo Repeats times with the panel white, no flicker and the dial
-on M. Under Photo, Camera as it is leaves the camera's settings alone. These settings
+on M. Photo sets both Capture and Run. Camera as it is takes the camera's settings as they
+are when you press the button, and Run reads them from the camera first. These settings
 sends the ISO, shutter speed and aperture picked on the tab first. The camera keeps them
-afterwards. Controls still shows the old values until Refresh settings. Impulse shutter
-belongs to Run's impulse frames only, while the boxes under These settings belong to
-Capture only.
+afterwards. Controls still shows the old values until Refresh settings. Run's impulse
+frames take the Impulse shutter in place of the shutter speed under Photo. With These
+settings they take its ISO and aperture too.
 
 Name starts the file names of all three: `fast_target_100ms_invert_00_coded.CR2` from Run,
 `fast_target_100ms_invert_00_switch.json` from LCD only flutter shutter and
@@ -452,26 +477,84 @@ the names start `flutter_`, `flutter_switch_` and `flutter_photo`. A name alread
 flutter folder gets `_2`, `_3` and so on after it, `fast_target_2_100ms_invert_...`, so a
 download never replaces an earlier one.
 
-Each bulb frame lands with `<index>_<tag>_trace.json` beside it, which downloads as
-`<label>_<index>_<tag>.json`. It holds the code, chop, lead and tail. It also holds
-`start_ms` and `end_ms` for every switch including the final black, in ms since the
-board's clock started. Those are when the board sent each switch. Nothing records what the
-glass did, since the photodiode came out. `play_s` and `bulb_s` in the trace, with
-`shown_s` and `fired_s` in the manifest, are times on the laptop's clock. `bulb_s` minus
-`play_s` is how long after the board started its clock the laptop launched gphoto2. It
-leaves out gphoto2's own start-up.
+Each coded, box, leakage, reference and dark frame lands with `<index>_<tag>_trace.json`
+beside it, which downloads as `<label>_<index>_<tag>.json`. It holds the code, chop, lead
+and tail. It also holds `start_ms` and `end_ms` for every switch including the final
+black, in ms since the board's clock started. Those are when the board sent each switch.
+Nothing records what the glass did, since the photodiode came out. `play_s` and `fired_s`
+in the trace, with `shown_s` and `fired_s` in the manifest, are times on the laptop's
+clock. `fired_s` minus `play_s` is how long after the board started its clock the laptop
+launched gphoto2. It leaves out gphoto2's own start-up. `shutter_s` is the shutter speed
+the camera read, in seconds.
 
-Bulb goes through one gphoto2 call so the USB session stays open. It sets `BULB_OPEN`,
-waits, sets `BULB_CLOSE`, then runs `--wait-event-and-download` for `BULB_DOWNLOAD_S`.
-`config.py` holds them as `eosremoterelease=Immediate` and
-`eosremoterelease=Release Full`. With gphoto2 2.5.28 the 60D has no `bulb` widget, so
-`bulb=1` and `bulb=0` take no frame. The server checks the shutter speed reads `bulb` before each run of bulb frames and
-says to turn the dial to B when it does not. Check two things on the first run. The bulb
-has to open and close on those settings. Invert has to take the glass all the way to white
-and back, which you can watch during LCD only flutter shutter.
+The server reads the camera's shutter speed before the first of these frames and again
+after each pop-up, impulse frame or setting it sends. It stops the run when the dial is on
+B, where the 60D has no shutter speed, or when the shutter speed is shorter than Lead +
+code. Check on the first run that Invert takes the glass all the way to white and back,
+which you can watch during LCD only flutter shutter.
 
-The deblur is not in the repository yet. It will be regularised least squares along the
-motion with the code from the trace, scored by MSE against the averaged reference frames.
+[flutter_deblur.py](flutter_deblur.py) deblurs the coded frame. It stretches the code from
+the trace over a blur length along the rows and removes it row by row by regularised least
+squares. It then aligns the result to the averaged reference frames and scores it by MSE,
+PSNR and NCC. `--sweep` tries a range of blur lengths in both directions and keeps the
+lowest MSE. Run it from the code folder with the run's prefix:
+
+```
+python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --blur 100
+python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --sweep 100:5200:100
+```
+
+The results land in `out/flutter/<run>/`: `compare.png` holds the coded, deblurred and
+reference frames one above the other, and `scores.csv` holds every blur length tried. The
+alignment searches up to half the frame width, so check the shift column. A deblurred frame
+that lands hundreds of pixels from where the coded frame did has matched the wrong part of
+the scene, and its MSE does not count.
+
+### Light levels and scoring
+
+The flutter results compare the coded photo with the box and the impulse at several light
+levels. The aperture sets the light, so the steps are exact: f/5.6, f/11 and f/22 at 5 s and
+ISO 100, a factor of 4 apart. The lamps, focus, zoom and track stay where they are. Each run
+ticks reference, impulse, coded and box, with the designed code, Chop 100, Lead 1000, Tail
+200, Invert and an Impulse shutter of 1/10. One leakage and one dark photo per aperture are
+enough. Drive the car left at about 100 px/s, which gives about 320 px of blur over the code,
+and start it with the "95" near the right edge of the frame. The impulse, coded and box
+photos take about 18 s, so the car travels about 1,800 px and stays in view.
+
+[flutter_score.py](flutter_score.py) checks and scores a run. Run it from the code folder
+with the run's Name:
+
+```
+python flutter_score.py Run2_f22
+python flutter_score.py Run2_f22 --pictures-only     # redraw the pictures from the saved scores
+```
+
+It checks the manifest and traces, reads each photo's raw level, clipping and EXIF, sweeps
+the coded and box photos over blur lengths from 200 to 1200 px with the car moving left, and
+scores every photo against the run's reference: MSE, NCC and detail, the correlation of the
+8 to 32 px features that make up the strokes of the "95". Each photo is scored with the f/11
+settings, lam 0.05 and 40 Richardson-Lucy iterations, and again at its best setting. The
+scores and pictures land in `out/flutter/<run>/`. It uses `flutter_deblur.py` for loading,
+deblurring and the first alignment, and `flutter_95_template.npy`, the "95" cut from a
+reference, to centre the close-ups.
+
+The best matched photo of each kind at each aperture is kept in
+`captures/flutter_5s_ISO100_f11/`, `captures/flutter_5s_ISO100_f22/` and
+`captures/flutter_5s_ISO100_f5.6/`. Each holds `data.md` with the settings, the results and
+why those photos, `data.csv`, `results.json`, the pictures and a `score.py` that makes them
+again from the photos. The .cr2 and .dng photos stay on the lab laptop, since `captures/` is
+not in git.
+
+Three things decide whether two photos compare fairly:
+
+- **Blur.** The car's speed wanders by 20 to 35% over the 8 s of moving photos, so the coded
+  and box photos of one run seldom get the same blur. A box with less blur has the easier job.
+- **Distance from the reference spot.** The car's reflections and the lamp light on it change
+  with where it is, and the score fits one brightness and contrast to the whole picture. A
+  photo taken 1,000 px from where the car stood for the reference scores several times worse
+  however sharp it is. Stand the car for the reference where it will be during the coded photo.
+- **Zoom.** The zoom moved from 51 mm to 55 mm during the f/22 runs. At 55 mm the car is 8%
+  bigger, and so is its blur in px.
 
 ### Target speed
 
@@ -566,6 +649,7 @@ The datasheet says 15 to 35 ms. The comment on `FLUTTER_CHOP_MS` in `config.py` 
 to 70 ms. The repository has no measurement of this panel to settle which is right.
 
 The flutter shutter needs no shutter timing from the laptop, since the panel is the
-shutter and the lead time covers the bulb opening. The 60D's remote jack is the 2.5 mm E3
-type, which an Arduino pin can drive through an optocoupler if a run ever needs the bulb
-to open on the board's clock too. That would take the guesswork out of Lead.
+shutter. Lead covers the delay before the shutter opens and the shutter speed covers the
+code. The 60D's remote jack is the 2.5 mm E3 type, which an Arduino pin can drive through
+an optocoupler if a run ever needs the shutter to open on the board's clock too. That
+would take the guesswork out of Lead.
