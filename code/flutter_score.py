@@ -1,7 +1,7 @@
 """Checks and scores flutter runs that took reference, impulse, coded and box photos, and draws
 the comparison pictures.
 
-The method is the one in captures/flutter_5s_ISO100_f11/score.py, with the file lookup made
+The method is the one in captures/flutter_5s_ISO100_f11_outside_lens/score.py, with the file lookup made
 general, the blur sweep moving left only (the car always drives left; in dim light the
 time-reversed code can score a few percent better by chance) and every photo also scored at its
 best setting (lam 0.02 to 1, RL 5 to 80 iterations, impulse smoothed by sigma 1 to 4 binned px).
@@ -37,7 +37,7 @@ import flutter_deblur as fd  # noqa: E402
 
 B = 4
 CODE = "10001101101001011000001111010101"
-# the "95" cut from Run19's reference (captures/flutter_5s_ISO100_f11/coded), binned 4 x 4, rows
+# the "95" cut from Run19's reference (captures/flutter_5s_ISO100_f11_outside_lens/coded), binned 4 x 4, rows
 # 330 to 615 and columns 665 to 1010; found in each new reference by matching
 TEMPLATE = CODE_DIR / "flutter_95_template.npy"
 CROP = (660, 1000)  # close-up size in binned px, as in the f/11 95_compare.png

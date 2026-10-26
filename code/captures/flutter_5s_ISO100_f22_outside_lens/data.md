@@ -189,4 +189,16 @@ The dark photo (lens cap on, 5 s, Run1_2) averages 0.00002 of full scale with a 
 
 To make `results.json` and the pictures again from the code folder:
 
-    .venv/bin/python captures/flutter_5s_ISO100_f22/score.py
+    .venv/bin/python captures/flutter_5s_ISO100_f22_outside_lens/score.py
+
+## Pair used in the report
+
+The report's f/22 row and its baseline figure (`Report/images/flutter_front_f22_baselines.png`) use
+a different pair from the one above: Run2_f22's coded photo (325 px, 101.6 px/s, 156 px from its
+reference spot) and impulse, with Run3_f22's box (300 px, 93.8 px/s, 120 px from its reference
+spot). Its deblur looks sharper, and both photos sat near their reference spots. The best settings
+from `flutter_score.py` (`out/flutter/Run2_f22/` and `out/flutter/Run3_f22/`) give the coded photo
+MSE 0.00159 (RL5), the box 0.00129 (RL20) and the impulse 0.00288 (smoothed 16 px). The coded
+photo's SNR gain is −0.9 dB over the box and +2.6 dB over the impulse. The figure shows the coded
+and box photos deblurred at lam 0.05. Run2_f22's coded and impulse photos are not on this laptop,
+so they are not in this folder.

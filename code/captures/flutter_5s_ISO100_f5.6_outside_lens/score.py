@@ -1,7 +1,7 @@
 """Scores every photo in this folder with one method, writes results.json and draws the pictures.
 
-Run from the code folder: .venv/bin/python captures/flutter_5s_ISO100_f5.6/score.py
-The method is the one in ../flutter_5s_ISO100_f22/score.py (the f/11 method, plus):
+Run from the code folder: .venv/bin/python captures/flutter_5s_ISO100_f5.6_outside_lens/score.py
+The method is the one in ../flutter_5s_ISO100_f22_outside_lens/score.py (the f/11 method, plus):
 - the blur sweep tries moving left only (the car always drives left; in dim light the noise can make
   the time-reversed code score a few percent better, which is physically wrong)
 - each photo is also scored at its best setting: lam 0.02 to 1, RL 5 to 80 iterations, impulse
@@ -30,7 +30,7 @@ B = 4
 CODED, IMPULSE = "Run2_f5_6_100ms_invert", "Run1_f5_6_100ms_invert"
 LAMS, RL_ITERS, SIGMAS = (0.02, 0.05, 0.1, 0.2, 0.5, 1.0), (5, 10, 20, 40, 80), (1, 2, 3, 4)
 # the "95" in the f/11 Run19 reference (binned y0, y1, x0, x1), found in each reference here by matching
-TEMPLATE = HERE.parent / "flutter_5s_ISO100_f11/coded/Run19_100ms_invert_00_reference.cr2"
+TEMPLATE = HERE.parent / "flutter_5s_ISO100_f11_outside_lens/coded/Run19_100ms_invert_00_reference.cr2"
 TEMPLATE_BOX = (330, 615, 665, 1010)
 CROP = (660, 1000)
 
