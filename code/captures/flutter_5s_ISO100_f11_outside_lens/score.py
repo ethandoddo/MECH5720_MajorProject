@@ -1,6 +1,6 @@
 """Scores every photo in this folder with one method and writes results.json next to it.
 
-Run from the code folder: .venv/bin/python captures/flutter_5s_ISO100_f11/score.py
+Run from the code folder: .venv/bin/python captures/flutter_5s_ISO100_f11_outside_lens/score.py
 Each coded or box photo: sweep the blur length (lam 0.05, both directions for coded), keep the
 lowest MSE, then RL 40 iterations at that length. Car speed = blur length / code time.
 Scoring: flutter_deblur's Scorer, then the best of +-3 rows and +-12 binned px around its shift

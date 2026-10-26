@@ -1,0 +1,14 @@
+run,photo,f_number,reference_mean,car_speed_px_s,blur_px,version,mse,ncc,detail,distance_px,file
+f56_run1_lcd_inside,coded,5.6,0.05334,156.2,500,as is,0.01066,0.857,0.164,120,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_02_coded.cr2
+f56_run1_lcd_inside,coded,5.6,0.05334,156.2,500,deblurred lam 0.05,0.00504,0.933,0.634,276,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_02_coded.cr2
+f56_run1_lcd_inside,coded,5.6,0.05334,156.2,500,deblurred RL40,0.00509,0.935,0.687,32,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_02_coded.cr2
+f56_run1_lcd_inside,coded,5.6,0.05334,156.2,500,best: deblurred lam 0.02,0.00489,0.935,0.66,280,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_02_coded.cr2
+f56_run1_lcd_inside,coded,5.6,0.05334,156.2,500,best: deblurred RL20,0.0048,0.939,0.69,32,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_02_coded.cr2
+f56_run1_lcd_inside,box,5.6,0.05334,125.0,400,as is,0.00915,0.844,0.162,1064,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_03_box.cr2
+f56_run1_lcd_inside,box,5.6,0.05334,125.0,400,deblurred lam 0.05,0.00734,0.872,0.38,1320,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_03_box.cr2
+f56_run1_lcd_inside,box,5.6,0.05334,125.0,400,deblurred RL40,0.00845,0.855,0.365,1112,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_03_box.cr2
+f56_run1_lcd_inside,box,5.6,0.05334,125.0,400,best: deblurred lam 0.05,0.00734,0.872,0.38,1320,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_03_box.cr2
+f56_run1_lcd_inside,box,5.6,0.05334,125.0,400,best: deblurred RL20,0.00831,0.858,0.361,1112,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_03_box.cr2
+f56_run1_lcd_inside,impulse,5.6,0.05334,156.2,15.6,as is,0.01164,0.838,0.28,1272,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_01_impulse.cr2
+f56_run1_lcd_inside,impulse,5.6,0.05334,156.2,15.6,smoothed 8 px,0.01057,0.854,0.307,1272,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_01_impulse.cr2
+f56_run1_lcd_inside,impulse,5.6,0.05334,156.2,15.6,best: smoothed 16 px,0.00986,0.864,0.377,1264,f56_run1_lcd_inside/f56_run1_lcd_inside_100ms_invert_01_impulse.cr2

@@ -539,8 +539,8 @@ deblurring and the first alignment, and `flutter_95_template.npy`, the "95" cut 
 reference, to centre the close-ups.
 
 The best matched photo of each kind at each aperture is kept in
-`captures/flutter_5s_ISO100_f11/`, `captures/flutter_5s_ISO100_f22/` and
-`captures/flutter_5s_ISO100_f5.6/`. Each holds `data.md` with the settings, the results and
+`captures/flutter_5s_ISO100_f11_outside_lens/`, `captures/flutter_5s_ISO100_f22_outside_lens/` and
+`captures/flutter_5s_ISO100_f5.6_outside_lens/`. Each holds `data.md` with the settings, the results and
 why those photos, `data.csv`, `results.json`, the pictures and a `score.py` that makes them
 again from the photos. The .cr2 and .dng photos stay on the lab laptop, since `captures/` is
 not in git.

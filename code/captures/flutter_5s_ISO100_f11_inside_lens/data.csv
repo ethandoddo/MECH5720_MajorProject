@@ -1,0 +1,27 @@
+run,photo,f_number,reference_mean,car_speed_px_s,blur_px,version,mse,ncc,detail,distance_px,file
+f11_run1_lcd_inside_2,coded,11.0,0.01433,117.2,375,as is,0.00394,0.958,0.556,1072,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_02_coded.cr2
+f11_run1_lcd_inside_2,coded,11.0,0.01433,117.2,375,deblurred lam 0.05,0.00313,0.967,0.64,1280,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_02_coded.cr2
+f11_run1_lcd_inside_2,coded,11.0,0.01433,117.2,375,deblurred RL40,0.00484,0.948,0.595,1096,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_02_coded.cr2
+f11_run1_lcd_inside_2,coded,11.0,0.01433,117.2,375,best: deblurred lam 0.1,0.00297,0.969,0.646,1280,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_02_coded.cr2
+f11_run1_lcd_inside_2,coded,11.0,0.01433,117.2,375,best: deblurred RL10,0.00302,0.968,0.649,1092,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_02_coded.cr2
+f11_run1_lcd_inside_2,box,11.0,0.01433,62.5,200,as is,0.0052,0.943,0.445,1972,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_03_box.cr2
+f11_run1_lcd_inside_2,box,11.0,0.01433,62.5,200,deblurred lam 0.05,0.0053,0.941,0.46,2052,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_03_box.cr2
+f11_run1_lcd_inside_2,box,11.0,0.01433,62.5,200,deblurred RL40,0.00572,0.937,0.4,1952,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_03_box.cr2
+f11_run1_lcd_inside_2,box,11.0,0.01433,62.5,200,best: deblurred lam 0.05,0.0053,0.941,0.46,2052,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_03_box.cr2
+f11_run1_lcd_inside_2,box,11.0,0.01433,62.5,200,best: deblurred RL5,0.00507,0.944,0.456,1960,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_03_box.cr2
+f11_run1_lcd_inside_2,impulse,11.0,0.01433,117.2,11.7,as is,0.01879,0.784,0.361,36,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_01_impulse.cr2
+f11_run1_lcd_inside_2,impulse,11.0,0.01433,117.2,11.7,smoothed 8 px,0.00384,0.96,0.437,32,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_01_impulse.cr2
+f11_run1_lcd_inside_2,impulse,11.0,0.01433,117.2,11.7,best: smoothed 16 px,0.00304,0.968,0.544,28,f11_run1_lcd_inside_2/f11_run1_lcd_inside_2_100ms_invert_01_impulse.cr2
+f22_run1_lcd_inside,coded,11.0,0.01356,140.6,450,as is,0.00542,0.932,0.29,972,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_02_coded.cr2
+f22_run1_lcd_inside,coded,11.0,0.01356,140.6,450,deblurred lam 0.05,0.00377,0.954,0.476,1108,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_02_coded.cr2
+f22_run1_lcd_inside,coded,11.0,0.01356,140.6,450,deblurred RL40,0.005,0.937,0.45,884,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_02_coded.cr2
+f22_run1_lcd_inside,coded,11.0,0.01356,140.6,450,best: deblurred lam 0.1,0.0036,0.956,0.483,1108,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_02_coded.cr2
+f22_run1_lcd_inside,coded,11.0,0.01356,140.6,450,best: deblurred RL10,0.00365,0.954,0.487,884,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_02_coded.cr2
+f22_run1_lcd_inside,box,11.0,0.01356,62.5,200,as is,0.00554,0.931,0.414,1592,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_03_box.cr2
+f22_run1_lcd_inside,box,11.0,0.01356,62.5,200,deblurred lam 0.05,0.00535,0.934,0.46,1696,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_03_box.cr2
+f22_run1_lcd_inside,box,11.0,0.01356,62.5,200,deblurred RL40,0.00558,0.931,0.5,1604,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_03_box.cr2
+f22_run1_lcd_inside,box,11.0,0.01356,62.5,200,best: deblurred lam 0.1,0.00534,0.934,0.454,1696,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_03_box.cr2
+f22_run1_lcd_inside,box,11.0,0.01356,62.5,200,best: deblurred RL10,0.00543,0.933,0.473,1600,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_03_box.cr2
+f22_run1_lcd_inside,impulse,11.0,0.01356,140.6,14.1,as is,0.01796,0.761,0.503,124,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_01_impulse.cr2
+f22_run1_lcd_inside,impulse,11.0,0.01356,140.6,14.1,smoothed 8 px,0.00337,0.96,0.609,124,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_01_impulse.cr2
+f22_run1_lcd_inside,impulse,11.0,0.01356,140.6,14.1,best: smoothed 16 px,0.00265,0.969,0.718,124,f22_run1_lcd_inside/f22_run1_lcd_inside_100ms_invert_01_impulse.cr2

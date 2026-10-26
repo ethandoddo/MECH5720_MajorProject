@@ -144,4 +144,4 @@ them; subtracting the dark made no difference to Run16's scores.
 
 To make `results.json` again from the code folder:
 
-    .venv/bin/python captures/flutter_5s_ISO100_f11/score.py
+    .venv/bin/python captures/flutter_5s_ISO100_f11_outside_lens/score.py

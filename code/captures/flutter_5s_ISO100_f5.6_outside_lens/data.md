@@ -183,4 +183,4 @@ The dark photo (lens cap on, 5 s, Run2_f5_6) averages 0.00010 of full scale with
 
 To make `results.json` and the pictures again from the code folder:
 
-    .venv/bin/python captures/flutter_5s_ISO100_f5.6/score.py
+    .venv/bin/python captures/flutter_5s_ISO100_f5.6_outside_lens/score.py
