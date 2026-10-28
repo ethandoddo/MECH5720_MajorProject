@@ -43,11 +43,11 @@ Light, measured by each run's reference photo as a fraction of the sensor's full
 | f22_inside_lcd_run2 | 0.01032 |
 | f22_lcd_inside | 0.00605 |
 
-The two runs used the same settings, yet the second reference is 1.7 times brighter. The light on
-the car changed between the runs, or the car filled a different part of the frame. Nothing recorded
-says which. The f/11 runs inside the lens measured 0.0136 to 0.0143. That is 1.3 to 1.4 times the
-second run, against the 4 times the aperture gives. The f/22 runs outside the lens measured 0.0065
-to 0.0071.
+The two runs used the same settings, yet the second reference is 1.7 times brighter. Either the
+light on the car changed between the runs or the car filled a different part of the frame. Nothing
+recorded says which. The f/11 runs inside the lens measured 0.0136 to 0.0143. That is 1.3 to 1.4
+times the second run, against the 4 times the aperture gives. The f/22 runs outside the lens
+measured 0.0065 to 0.0071.
 
 ## What is here
 
@@ -93,7 +93,8 @@ SNR gain of the deblurred coded photo, 10 log10(MSE baseline / MSE coded):
 | f22_inside_lcd_run2 | −0.9 dB | +2.5 dB |
 | f22_lcd_inside | +2.9 dB (not usable) | +4.0 dB (not usable) |
 
-Recomputed without rounding, `f22_inside_lcd_run2` gives −0.94 and +2.45 dB, so the rounding holds.
+The MSEs recomputed without rounding give −0.94 and +2.45 dB for `f22_inside_lcd_run2`, so the
+rounded gains hold.
 
 Reading these, for `f22_inside_lcd_run2`:
 
@@ -102,30 +103,30 @@ Reading these, for `f22_inside_lcd_run2`:
   reference within 0.5% in size and 8 px in height.
 - The box beats the coded photo by 0.9 dB. The f/22 run outside the lens gave the same margin.
 - The box sat 270 to 540 px from the reference spot and the coded photo 580 to 780 px. That
-  favours the box a little. In the f/5.6 and f/11 runs inside the lens the box sat 1,060 to 2,050 px
+  favours the box. In the f/5.6 and f/11 runs inside the lens the box sat 1,060 to 2,050 px
   away, which favoured the coded photo.
 - The box had 1.25 times the blur of the coded photo (500 against 400 px). That favours the coded
   photo. The car sped up from 125 to 156 px/s between the two photos.
-- The impulse sat 1,550 to 1,570 px from the reference spot. That favours the coded photo, so the
-  gain over the impulse overstates it.
+- The impulse sat 1,550 to 1,570 px from the reference spot. That favours the coded photo and
+  inflates its gain over the impulse.
 - The impulse's best smoothing is the largest the script tries.
 - The deblur works. The 95 comes back with faint repeated edges and the MSE falls 1.8 dB from the
   coded photo as taken. The best lam (0.1, MSE 0.00468) and the best RL (10 iterations, 0.00467)
   tie.
 
-## The first run
+## Why the first run is not usable
 
 Do not quote the first run's SNR gains. They come from baselines that matched the reference even
 worse than the coded photo did.
 
 - The moving photos do not match the reference. `f22_lcd_inside_100ms_invert_coded.png` shows the
-  car bigger and lower than the reference does, and the box photo shows it bigger again. The car
+  car bigger and lower than the reference does. The box photo shows the car bigger again. The car
   came towards the camera as it drove left. The row profile check needed a size change of at least
   20%, the limit of the check. Every photo scores an NCC below 0.81 against the reference.
 - The deblur cannot fit that motion. The blur sweep is nearly flat, with the coded MSE within
   0.0013 of itself from 200 to 375 px. Deblurring at lam 0.05 makes the coded photo worse, 0.0315
   against 0.0285 as taken. The best setting is lam 1, the heaviest the script tries. It smooths the
-  photo and moved the alignment by 364 px. The 95 does not come back.
+  photo and moves the alignment by 364 px. The 95 does not come back.
 - The impulse recorded almost nothing: a mean of 0.00021 of full scale against 0.00605 for the
   reference. Its alignment hit the vertical search limit, so its score and distance are
   meaningless.
