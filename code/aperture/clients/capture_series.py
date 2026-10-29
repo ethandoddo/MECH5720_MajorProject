@@ -2,19 +2,19 @@
 the window that does the same with a camera view. Run either on the laptop where
 server.py is running, or point --host at the machine that runs it.
 
-  python capture_series.py --status
-  python capture_series.py --pattern levin
-  python capture_series.py --set iso=100 --set shutterspeed=1/30
-  python capture_series.py --sequence pair --label 700mm --outdir captures/gate3
-  python capture_series.py --patterns open levin nayar open --label 700mm
-  python capture_series.py --sequence scan --label 1000mm --outdir captures/refocus
-  python capture_series.py --patterns open ~/star.png ~/walk.gif open --label bokeh
-  python capture_series.py --play ~/walk.gif --speed 2
-  python capture_series.py --stop
-  python capture_series.py --code designed --chop 100 --label flutter      # one coded frame on M
-  python capture_series.py --code 1011001 --chop 200 --no-capture          # play it, trace only
-  python capture_series.py --go                                            # a paused job carries on
-  python capture_series.py --abort                                         # stop the running job
+  python -m aperture.clients.capture_series --status
+  python -m aperture.clients.capture_series --pattern levin
+  python -m aperture.clients.capture_series --set iso=100 --set shutterspeed=1/30
+  python -m aperture.clients.capture_series --sequence pair --label 700mm --outdir captures/gate3
+  python -m aperture.clients.capture_series --patterns open levin nayar open --label 700mm
+  python -m aperture.clients.capture_series --sequence scan --label 1000mm --outdir captures/refocus
+  python -m aperture.clients.capture_series --patterns open ~/star.png ~/walk.gif open --label bokeh
+  python -m aperture.clients.capture_series --play ~/walk.gif --speed 2
+  python -m aperture.clients.capture_series --stop
+  python -m aperture.clients.capture_series --code designed --chop 100 --label flutter      # one coded frame on M
+  python -m aperture.clients.capture_series --code 1011001 --chop 200 --no-capture          # play it, trace only
+  python -m aperture.clients.capture_series --go                                            # a paused job carries on
+  python -m aperture.clients.capture_series --abort                                         # stop the running job
 
 A sequence runs inside the server and the files come back to --outdir named
 <label>_<index>_<pattern>.<ext> with the manifest beside them. A GIF in --patterns gives
@@ -153,7 +153,7 @@ def main():
         if args.code:
             code = args.code
             if code == "designed":
-                import flutter
+                from aperture import flutter
                 code = flutter.to_text(flutter.design())
             step = {"code": code, "method": args.method, "capture": not args.no_capture}
             if args.chop is not None:

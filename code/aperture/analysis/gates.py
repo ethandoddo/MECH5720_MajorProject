@@ -5,10 +5,10 @@ A session is the folder capture_series.py or camview_capture.py downloaded, hold
 server wrote (captures/<stamp>_<label>/) works too. Every frame is a defocused point
 source in the image centre, as in the Lab 3 PSF protocol.
 
-  python gates.py gate1 captures/gate1/700mm_manifest.json --bare captures/bare/bare_00_open.CR2
-  python gates.py gate2 captures/g2/700mm_manifest.json captures/g2/1000mm_manifest.json captures/g2/1300mm_manifest.json
-  python gates.py gate3 captures/gate3/700mm_manifest.json
-  python gates.py selftest
+  python -m aperture.analysis.gates gate1 captures/gate1/700mm_manifest.json --bare captures/bare/bare_00_open.CR2
+  python -m aperture.analysis.gates gate2 captures/g2/700mm_manifest.json captures/g2/1000mm_manifest.json captures/g2/1300mm_manifest.json
+  python -m aperture.analysis.gates gate3 captures/gate3/700mm_manifest.json
+  python -m aperture.analysis.gates selftest
 
 Gate 1  the coded PSF matches the displayed pattern at NCC >= 0.8, and the open disc
         through the panel is within 3 stops of the bare lens (--bare is a frame of the same
@@ -28,10 +28,8 @@ from pathlib import Path
 
 import numpy as np
 
-import defocus
-import patterns
-import psfkit
-import rawframe
+from aperture import patterns
+from aperture.analysis import defocus, psfkit, rawframe
 
 NCC_PASS = 0.8            # pitch, gates 1 and 3
 STOPS_PASS = 3.0          # pitch, gate 1

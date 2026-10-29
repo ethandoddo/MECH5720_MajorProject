@@ -1,8 +1,9 @@
 """Settings shared by the server, the clients, the pattern code and the arduino backend."""
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-MASK_DIR = ROOT / "masks"
+ROOT = Path(__file__).resolve().parents[1]   # the code folder, one above this package
+ASSETS = ROOT / "assets"
+MASK_DIR = ASSETS / "masks"
 SESSIONS = ROOT.parent / "captures"     # the server writes one folder per sequence here
 
 # ---- panel: Adafruit 358, ST7735R, 1.8 inch, portrait -------------------------------

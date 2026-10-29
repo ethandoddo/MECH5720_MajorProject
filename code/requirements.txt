@@ -12,4 +12,5 @@ opencv-python
 glfw
 PyOpenGL
 imgui-bundle
+matplotlib
 # the st7735 backend, the panel on a Raspberry Pi, also needs adafruit-circuitpython-rgb-display

@@ -17,7 +17,7 @@ from scipy.signal import fftconvolve
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-import flutter_deblur as fd  # noqa: E402
+from aperture.analysis import flutter_deblur as fd  # noqa: E402
 
 B = 4
 DIR = {"Run19_100ms_invert": "coded", "Run17_box_100ms_invert": "box", "Run16_100ms_invert": "impulse_and_dark",

@@ -6,8 +6,8 @@ HTTP, the same shape as the Lab 1 Pi camera server, so a second machine can driv
 too. A sequence of patterns and captures runs in its own thread, so no client round trip
 sits between a pattern change and the shutter, and the clients poll for progress.
 
-  python server.py --display arduino --camera gphoto     # the real thing
-  python server.py --display window --camera dummy       # a window instead of the panel, no camera
+  python -m aperture.rig.server --display arduino --camera gphoto     # the real thing
+  python -m aperture.rig.server --display window --camera dummy       # a window instead of the panel, no camera
 
 Endpoints:
   GET  /status                 backends, current pattern, panel geometry, last capture, running job
@@ -60,13 +60,13 @@ from datetime import datetime
 
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
-import config as cfg
-import flutter
-import patterns
-from camera import CameraError, add_dngs, open_camera
-from display import open_display
-from liveview import open_liveview
-from preview import make_preview
+from aperture import config as cfg
+from aperture import flutter
+from aperture import patterns
+from aperture.rig.camera import CameraError, add_dngs, open_camera
+from aperture.rig.display import open_display
+from aperture.rig.liveview import open_liveview
+from aperture.rig.preview import make_preview
 
 app = Flask(__name__)
 lock = threading.Lock()

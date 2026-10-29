@@ -113,4 +113,4 @@ author footnote in `main.tex`.
 1. Upload `main.tex`, `preamble.sty`, `references.bib`, `sections/` and `images/` into the report project. Let `preamble.sty` overwrite the pitch copy, which cannot load under IEEEtran.
 2. Check that the Overleaf menu lists `main.tex` as the main document.
 3. Overleaf ships IEEEtran V1.8b, the version the ICCP 2026 template uses, so the project needs no class file.
-4. Regenerate the two method figures with `python code/report_figures.py` after you change `code/config.py`.
+4. Regenerate the two method figures with `python -m aperture.analysis.report_figures`, run from `code/`, after you change `code/aperture/config.py`.

@@ -1,6 +1,6 @@
 """Figures for the report's method section, drawn from the same constants the capture code uses.
 
-  python report_figures.py            writes ../Report/images/patterns.png and blur_model.png
+  python -m aperture.analysis.report_figures    writes ../Report/images/patterns.png and blur_model.png
 
 patterns.png    the panel images the server sends for each experiment, 128 x 160 pixels as the
                 panel shows them, with the lens pupil outlined
@@ -17,8 +17,8 @@ import numpy as np
 from matplotlib.patches import Circle
 from PIL import Image, ImageDraw
 
-import config as cfg
-import patterns
+from aperture import config as cfg
+from aperture import patterns
 
 OUT = cfg.ROOT.parent / "Report" / "images"
 

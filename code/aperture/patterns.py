@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageSequence
 
-import config as cfg
+from aperture import config as cfg
 
 OPEN = set("1#X*O")
 SHUT = set("0._-")
@@ -206,7 +206,7 @@ def rotate(mask, deg):
 
 
 def build(name, diameter_mm=None, image_scale=1.0, rotation_deg=0.0):
-    """bool array for a pattern name; masks/<name>.txt, scanN, a path to a PNG or GIF, or <path>.gif#k.
+    """bool array for a pattern name; assets/masks/<name>.txt, scanN, a path to a PNG or GIF, or <path>.gif#k.
     A GIF with no frame number gives its first frame. image_scale sizes images only;
     rotation_deg turns any pattern, anticlockwise"""
     return rotate(_build(name, diameter_mm, image_scale), rotation_deg)

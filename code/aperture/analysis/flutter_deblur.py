@@ -1,8 +1,8 @@
 """Deblur the coded frame of a flutter run with its code and score it against the reference.
 
 The blur is the code stretched over --blur px along the rows, open chops 1 and shut chops
---leak. Each row is deconvolved by regularised least squares in the Fourier domain
-(Tikhonov, --lam). The result and the raw coded frame are each aligned to the averaged
+--leak. Each row is deconvolved by a Wiener filter in the Fourier domain
+(K = --lam). The result and the raw coded frame are each aligned to the averaged
 reference frames by cross-correlation, fitted to them by a gain and an offset, and scored by
 MSE over the middle half-width of the overlap, the reference scaled to its 99.5th percentile.
 --sweep tries a range of blur lengths in both directions and keeps the lowest MSE.
@@ -13,9 +13,9 @@ that time in s; the blur is then that window of the cycle stretched over --blur 
 window starting --phase ms after the play command. --phases sweeps the start as well.
 
 Run from the code folder:
-  .venv/bin/python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --blur 100
-  .venv/bin/python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --sweep 50:5000:50
-  .venv/bin/python flutter_deblur.py --coded ~/Desktop/IMG_9314.CR2 \\
+  .venv/bin/python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --blur 100
+  .venv/bin/python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --sweep 50:5000:50
+  .venv/bin/python -m aperture.analysis.flutter_deblur --coded ~/Desktop/IMG_9314.CR2 \\
       --reference captures/flutter/Run1actual_100ms_invert_01_reference.cr2 \\
       --trace captures/flutter/run4_100ms_invert_05_switch.json --exposure 0.5 \\
       --sweep 200:5200:200 --phases 500:4200:100 --bin 8
@@ -30,7 +30,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter, median_filter
 
-import rawframe
+from aperture.analysis import rawframe
 
 
 def load(path, binning):
@@ -78,7 +78,7 @@ def code_psf(code, length, leak, reverse, sub=16):
 
 
 def deconvolve(img, k, lam):
-    """row by row Tikhonov deconvolution; rows padded by reflection and tapered so the
+    """row by row Wiener filter; rows padded by reflection and tapered so the
     edges do not wrap"""
     h, w = img.shape
     pad = len(k) + 16
@@ -166,7 +166,7 @@ def main():
     ap.add_argument("--sweep", help="start:stop:step in full-res px; tries both directions and keeps the lowest MSE")
     ap.add_argument("--reverse", action="store_true", help="target moved right to left (only without --sweep)")
     ap.add_argument("--leak", type=float, default=0.0, help="transmission of a shut chop relative to an open one")
-    ap.add_argument("--lam", type=float, default=1e-3, help="Tikhonov weight")
+    ap.add_argument("--lam", type=float, default=1e-3, help="Wiener filter K")
     ap.add_argument("--bin", type=int, default=4, help="bin the frames this many px a side first (default 4)")
     ap.add_argument("--max-dy", type=int, default=8, help="largest vertical shift tried in alignment, binned px")
     ap.add_argument("--out", help="output folder (default out/flutter/<run or photo name>)")
