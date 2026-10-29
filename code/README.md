@@ -517,8 +517,8 @@ code. Check on the first run that Invert takes the glass all the way to white an
 which you can watch during LCD only flutter shutter.
 
 [flutter_deblur.py](aperture/analysis/flutter_deblur.py) deblurs the coded frame. It stretches the code from
-the trace over a blur length along the rows and removes it row by row by regularised least
-squares. It then aligns the result to the averaged reference frames and scores it by MSE,
+the trace over a blur length along the rows and removes it row by row with a Wiener
+filter. It then aligns the result to the averaged reference frames and scores it by MSE,
 PSNR and NCC. `--sweep` tries a range of blur lengths in both directions and keeps the
 lowest MSE. Run it from the code folder with the run's prefix:
 

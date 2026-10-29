@@ -3,7 +3,7 @@
 A code is a list of 0s and 1s, one per chop. The board plays it on the panel from its
 own clock during one photo on M, so the panel is the shutter. A target
 that moves at a steady speed then blurs by the code stretched along its motion. A good
-code keeps every spatial frequency of that blur above zero, so least squares can undo it.
+code keeps every spatial frequency of that blur above zero, so a Wiener filter can undo it.
 A box exposure of the same length has zeros, which is why its deblurred image shows bands.
 
 design() searches random codes with half the chops open for the one whose padded spectrum

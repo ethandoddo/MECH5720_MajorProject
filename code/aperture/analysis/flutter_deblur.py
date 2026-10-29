@@ -1,8 +1,8 @@
 """Deblur the coded frame of a flutter run with its code and score it against the reference.
 
 The blur is the code stretched over --blur px along the rows, open chops 1 and shut chops
---leak. Each row is deconvolved by regularised least squares in the Fourier domain
-(Tikhonov, --lam). The result and the raw coded frame are each aligned to the averaged
+--leak. Each row is deconvolved by a Wiener filter in the Fourier domain
+(K = --lam). The result and the raw coded frame are each aligned to the averaged
 reference frames by cross-correlation, fitted to them by a gain and an offset, and scored by
 MSE over the middle half-width of the overlap, the reference scaled to its 99.5th percentile.
 --sweep tries a range of blur lengths in both directions and keeps the lowest MSE.
@@ -78,7 +78,7 @@ def code_psf(code, length, leak, reverse, sub=16):
 
 
 def deconvolve(img, k, lam):
-    """row by row Tikhonov deconvolution; rows padded by reflection and tapered so the
+    """row by row Wiener filter; rows padded by reflection and tapered so the
     edges do not wrap"""
     h, w = img.shape
     pad = len(k) + 16
@@ -166,7 +166,7 @@ def main():
     ap.add_argument("--sweep", help="start:stop:step in full-res px; tries both directions and keeps the lowest MSE")
     ap.add_argument("--reverse", action="store_true", help="target moved right to left (only without --sweep)")
     ap.add_argument("--leak", type=float, default=0.0, help="transmission of a shut chop relative to an open one")
-    ap.add_argument("--lam", type=float, default=1e-3, help="Tikhonov weight")
+    ap.add_argument("--lam", type=float, default=1e-3, help="Wiener filter K")
     ap.add_argument("--bin", type=int, default=4, help="bin the frames this many px a side first (default 4)")
     ap.add_argument("--max-dy", type=int, default=8, help="largest vertical shift tried in alignment, binned px")
     ap.add_argument("--out", help="output folder (default out/flutter/<run or photo name>)")
