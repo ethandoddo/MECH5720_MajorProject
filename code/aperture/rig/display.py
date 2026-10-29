@@ -9,7 +9,7 @@
 
 show() returns the time.monotonic() at which the backend finished pushing the frame.
 The cell then still takes its own response time to settle.
-`python display.py` prints what every pattern costs on the serial link.
+`python -m aperture.rig.display` prints what every pattern costs on the serial link.
 
 play_code() plays a flutter shutter code, every chop the whole panel open or shut, and
 read_play() blocks until it has finished and returns the trace: when each switch started
@@ -26,7 +26,7 @@ import time
 import numpy as np
 from PIL import Image
 
-import config as cfg
+from aperture import config as cfg
 
 MAX_CHOPS = 64          # the sketch's limit, as flutter.py has it
 
@@ -394,7 +394,7 @@ def open_display(name, **kw):
 
 if __name__ == "__main__":
     # what each pattern costs on the serial link, at ten bits per byte
-    import patterns
+    from aperture import patterns
 
     for n in patterns.names():
         size = len(encode_runs(patterns.make(n)))

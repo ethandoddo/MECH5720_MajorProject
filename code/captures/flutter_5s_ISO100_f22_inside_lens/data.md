@@ -161,7 +161,7 @@ and its reference at that alignment, in full-resolution px.
 
 To make the scores and pictures again, from the code folder (about 5.5 min a run):
 
-    .venv/bin/python flutter_score.py f22_inside_lcd_run2 --dir captures/flutter_5s_ISO100_f22_inside_lens/f22_inside_lcd_run2 --out captures/flutter_5s_ISO100_f22_inside_lens --folder f22_inside_lcd_run2
-    .venv/bin/python flutter_score.py f22_lcd_inside --dir captures/flutter_5s_ISO100_f22_inside_lens/f22_lcd_inside --out captures/flutter_5s_ISO100_f22_inside_lens --folder f22_lcd_inside
+    .venv/bin/python -m aperture.analysis.flutter_score f22_inside_lcd_run2 --dir captures/flutter_5s_ISO100_f22_inside_lens/f22_inside_lcd_run2 --out captures/flutter_5s_ISO100_f22_inside_lens --folder f22_inside_lcd_run2
+    .venv/bin/python -m aperture.analysis.flutter_score f22_lcd_inside --dir captures/flutter_5s_ISO100_f22_inside_lens/f22_lcd_inside --out captures/flutter_5s_ISO100_f22_inside_lens --folder f22_lcd_inside
 
 Add `--pictures-only` to redraw the pictures from the saved scores in a few seconds.

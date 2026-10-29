@@ -18,8 +18,8 @@ import subprocess
 import threading
 from pathlib import Path
 
-import config as cfg
-import flutter
+from aperture import config as cfg
+from aperture import flutter
 
 RAW_EXT = {".cr2", ".dng", ".nef", ".arw", ".raw"}
 SETTING_NAMES = ("iso", "shutterspeed", "aperture")

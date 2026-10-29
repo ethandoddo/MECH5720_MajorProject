@@ -20,23 +20,46 @@ window turns it off too. The server terminal says why it stopped.
 
 ## Files
 
+Run every command from this `code` folder. The Python lives in the `aperture` package and
+each program runs as a module, so `python -m aperture.rig.server` starts
+`aperture/rig/server.py`.
+
+```
+code/
+├── aperture/      the Python package
+│   ├── rig/       the server and its backends, on the laptop with the hardware
+│   ├── clients/   the capture window, the command line client and show
+│   └── analysis/  scoring, deblurring and the report figures
+├── assets/        masks, sprites and the flutter "95" template
+├── arduino/       the panel sketch
+├── captures/      the kept results
+└── out/           generated output, not in git
+```
+
 | File | Purpose |
 | --- | --- |
+| [aperture/config.py](aperture/config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences and the flutter shutter settings |
+| [aperture/patterns.py](aperture/patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `assets/masks/*.txt` grid, `scan0`..`scan8`, `scan5_0`..`scan5_24` for a 5 x 5 scan, any PNG or GIF frame. `python -m aperture.patterns` writes the named ones to `out/patterns/` |
+| [aperture/flutter.py](aperture/flutter.py) | Designs the flutter shutter code and checks its timing. `python -m aperture.flutter` prints the default code and its score |
+| [aperture/rig/server.py](aperture/rig/server.py) | Flask server that owns the panel and the camera |
+| [aperture/rig/display.py](aperture/rig/display.py) | `arduino` for the panel, `window` for a window on the laptop, `st7735` for the panel on a Raspberry Pi, `null` for tests. `python -m aperture.rig.display` prints what each pattern costs on the serial link |
+| [aperture/rig/camera.py](aperture/rig/camera.py) | `gphoto` for the 60D, stills and the shutter speed check for the flutter frames. `dummy` writes the shown pattern so everything runs with no camera |
+| [aperture/rig/liveview.py](aperture/rig/liveview.py) | Live view stream from `gphoto2 --capture-movie`. The dummy version streams the panel image |
+| [aperture/rig/preview.py](aperture/rig/preview.py) | Pulls the embedded JPEG out of a CR2 for the camera view |
+| [aperture/clients/camview_capture.py](aperture/clients/camview_capture.py) | The main driver. Camera view, panel view, controls for patterns, camera settings, single frames and sequences, plus the Experiments window |
+| [aperture/clients/capture_series.py](aperture/clients/capture_series.py) | Command line client for scripted runs |
+| [aperture/clients/show.py](aperture/clients/show.py) | Show one pattern with no server |
+| [aperture/analysis/gates.py](aperture/analysis/gates.py) | Scores downloaded sessions against the three gates in the pitch. See Gates below |
+| [aperture/analysis/psfkit.py](aperture/analysis/psfkit.py) | PSF extraction, width, spectrum and the match against the displayed pattern, for the gates |
+| [aperture/analysis/rawframe.py](aperture/analysis/rawframe.py) | Loads a CR2, DNG, PNG or JPEG frame as a green channel float image |
+| [aperture/analysis/defocus.py](aperture/analysis/defocus.py) | The thin lens blur model and depth of field fit behind Gate 2 |
+| [aperture/analysis/flutter_deblur.py](aperture/analysis/flutter_deblur.py) | Deblurs a flutter run's coded frame with the code from its trace and scores it against the reference frames |
+| [aperture/analysis/flutter_score.py](aperture/analysis/flutter_score.py) | Checks a flutter run and scores its coded, box and impulse photos against the reference, with the close-up pictures. Uses `assets/flutter_95_template.npy` to find the "95" |
+| [aperture/analysis/report_figures.py](aperture/analysis/report_figures.py) | Draws `patterns.png` and `blur_model.png` for the report's method section into `../Report/images/` |
 | [arduino/aperture_panel/aperture_panel.ino](arduino/aperture_panel/aperture_panel.ino) | The sketch. Takes each pattern over serial as run lengths and writes it to the panel as it arrives. Plays a flutter shutter code from its own clock |
-| [camview_capture.py](camview_capture.py) | The main driver. Camera view, panel view, controls for patterns, camera settings, single frames and sequences, plus the Experiments window |
-| [capture_series.py](capture_series.py) | Command line client for scripted runs |
-| [server.py](server.py) | Flask server that owns the panel and the camera |
-| [config.py](config.py) | Panel geometry, serial port and baud, lens pupil, the coded pair, named sequences and the flutter shutter settings |
-| [patterns.py](patterns.py) | Builds 128 x 160 pattern images: open disc, white, black, any `masks/*.txt` grid, `scan0`..`scan8`, `scan5_0`..`scan5_24` for a 5 x 5 scan, any PNG or GIF frame. `python patterns.py` writes the named ones to `out/patterns/` |
-| [flutter.py](flutter.py) | Designs the flutter shutter code and checks its timing. `python flutter.py` prints the default code and its score |
-| [flutter_deblur.py](flutter_deblur.py) | Deblurs a flutter run's coded frame with the code from its trace and scores it against the reference frames |
-| [flutter_score.py](flutter_score.py) | Checks a flutter run and scores its coded, box and impulse photos against the reference, with the close-up pictures. Uses `flutter_95_template.npy` to find the "95" |
-| [display.py](display.py) | `arduino` for the panel, `window` for a window on the laptop, `st7735` for the panel on a Raspberry Pi, `null` for tests. `python display.py` prints what each pattern costs on the serial link |
-| [camera.py](camera.py) | `gphoto` for the 60D, stills and the shutter speed check for the flutter frames. `dummy` writes the shown pattern so everything runs with no camera |
-| [liveview.py](liveview.py) | Live view stream from `gphoto2 --capture-movie`. The dummy version streams the panel image |
-| [preview.py](preview.py) | Pulls the embedded JPEG out of a CR2 for the camera view |
-| [show.py](show.py) | Show one pattern with no server |
-| `masks/` | Cell grids in the Lab 3 format. `zhou_a.txt` and `zhou_b.txt` are the 13 x 13 coded pair from figure 4 of Zhou, Lin and Nayar, ICCV 2009, sampled from the paper's own figure raster. `levin.txt` and `nayar.txt` are the Lab 3 masks |
+| `assets/masks/` | Cell grids in the Lab 3 format. `zhou_a.txt` and `zhou_b.txt` are the 13 x 13 coded pair from figure 4 of Zhou, Lin and Nayar, ICCV 2009, sampled from the paper's own figure raster. `levin.txt` and `nayar.txt` are the Lab 3 masks |
+| `assets/sprites/` | Sprite animations for custom bokeh, binary and grey, drawn by `make_sprites.py` beside them |
+| `assets/flutter_95_template.npy` | The "95" on the toy car, cut from the Run19 reference and binned 4 x 4. `flutter_score.py` finds it in each reference to centre the close-ups |
 
 ## Step by step
 
@@ -69,21 +92,21 @@ The sections after this one explain each part. This one is the order to do thing
    ```
 4. Start the server in one terminal and leave it running.
    ```
-   python server.py --display arduino --camera gphoto
+   python -m aperture.rig.server --display arduino --camera gphoto
    ```
    It prints `display=arduino camera=gphoto pupil 27.8 mm = 126.8 px` when both are up.
    `--display window --camera dummy` runs the whole thing with nothing plugged in.
 5. Check the panel from a second terminal. `white` should fill the glass edge to edge and
    `scan0` should light one corner tile. Note which corner.
    ```
-   python show.py white --backend arduino
-   python show.py scan0 --backend arduino
+   python -m aperture.clients.show white --backend arduino
+   python -m aperture.clients.show scan0 --backend arduino
    ```
    Look through the lens at `white` and `black`. If the glass passes light where the image
    is black, set `PANEL_INVERT = True` in `config.py` and restart the server.
 6. Start the window in the second terminal.
    ```
-   python camview_capture.py --outdir captures
+   python -m aperture.clients.camview_capture --outdir captures
    ```
    Set the ISO and shutter speed under Camera in Controls. Tick Live view to frame the
    scene and untick it before a run, since it drains the battery. If the panes sit on top
@@ -134,9 +157,9 @@ The buttons per tab, in the order to run them:
 The same from the command line, one coded frame at a time at the shutter speed set on M:
 
 ```
-python capture_series.py --code designed --chop 100 --no-capture --label switch --outdir captures/flutter
-python capture_series.py --code designed --chop 100 --label coded --outdir captures/flutter
-python capture_series.py --go        # from another terminal when a job is waiting
+python -m aperture.clients.capture_series --code designed --chop 100 --no-capture --label switch --outdir captures/flutter
+python -m aperture.clients.capture_series --code designed --chop 100 --label coded --outdir captures/flutter
+python -m aperture.clients.capture_series --go        # from another terminal when a job is waiting
 ```
 
 ## Laptop setup
@@ -248,15 +271,15 @@ which the panel takes hundreds of microseconds to draw while the next bytes arri
 
 Until the next login after `usermod`, the shell is not in `dialout` yet. Run the upload
 and the server under the group in the meantime:
-`sg dialout -c "python server.py --display arduino --camera gphoto"`.
+`sg dialout -c "python -m aperture.rig.server --display arduino --camera gphoto"`.
 
 On Ubuntu the brltty screen reader service claims CH340 bridges, the chip on most ESP32
 minis, so the port vanishes a moment after it appears. `sudo apt remove brltty` fixes
 that.
 
-Two checks on the first run. `python show.py white --backend arduino` should fill the
+Two checks on the first run. `python -m aperture.clients.show white --backend arduino` should fill the
 panel edge to edge. A strip of noise two pixels wide along one edge means the panel wants
-`INITR_GREENTAB` in the sketch. `python show.py scan0 --backend arduino` lights one corner
+`INITR_GREENTAB` in the sketch. `python -m aperture.clients.show scan0 --backend arduino` lights one corner
 tile. Note which corner of the glass that is, since the refocus code takes each tile's
 position from the pattern image.
 
@@ -268,12 +291,12 @@ SPI on the pins in `config.py`. It needs `adafruit-circuitpython-rgb-display`.
 Two terminals on the laptop:
 
 ```
-python server.py --display arduino --camera gphoto
-python server.py --display window --camera dummy     # development, no hardware
+python -m aperture.rig.server --display arduino --camera gphoto
+python -m aperture.rig.server --display window --camera dummy     # development, no hardware
 ```
 
 ```
-python camview_capture.py --outdir captures
+python -m aperture.clients.camview_capture --outdir captures
 ```
 
 `--host` on either client points at another machine that runs the server.
@@ -307,18 +330,18 @@ that runs it.
 The command line does the same:
 
 ```
-python capture_series.py --status
-python capture_series.py --set iso=100 --set shutterspeed=1/30
-python capture_series.py --pattern levin
-python capture_series.py --sequence pair --label 700mm --outdir captures/gate3
-python capture_series.py --sequence scan --label 1000mm --outdir captures/refocus
-python capture_series.py --patterns open star.png walk.gif open --label bokeh
-python capture_series.py --play walk.gif --speed 2
-python capture_series.py --stop
-python capture_series.py --code designed --chop 100 --label flutter      # one coded frame on M
-python capture_series.py --code 1011001 --chop 50 --no-capture           # play it and record the trace
-python capture_series.py --go                                            # a paused job carries on
-python capture_series.py --abort                                         # stop the running job
+python -m aperture.clients.capture_series --status
+python -m aperture.clients.capture_series --set iso=100 --set shutterspeed=1/30
+python -m aperture.clients.capture_series --pattern levin
+python -m aperture.clients.capture_series --sequence pair --label 700mm --outdir captures/gate3
+python -m aperture.clients.capture_series --sequence scan --label 1000mm --outdir captures/refocus
+python -m aperture.clients.capture_series --patterns open star.png walk.gif open --label bokeh
+python -m aperture.clients.capture_series --play walk.gif --speed 2
+python -m aperture.clients.capture_series --stop
+python -m aperture.clients.capture_series --code designed --chop 100 --label flutter      # one coded frame on M
+python -m aperture.clients.capture_series --code 1011001 --chop 50 --no-capture           # play it and record the trace
+python -m aperture.clients.capture_series --go                                            # a paused job carries on
+python -m aperture.clients.capture_series --abort                                         # stop the running job
 ```
 
 Frames land in `<outdir>/<label>_<index>_<pattern>.CR2`, `.JPG` and `.dng` with `<label>_manifest.json`
@@ -350,7 +373,7 @@ step. A job that stops or fails still writes its manifest with the frames it too
 manifest keeps the full step list under `steps`.
 
 Custom bokeh is any PNG the server can read, passed as a pattern name. In an image with
-transparency, such as the sprites in `sprites/`, the transparent pixels are open like
+transparency, such as the sprites in `assets/sprites/`, the transparent pixels are open like
 clear glass. Every opaque pixel is shut, black and grey alike. The sprites are
 transparent characters on black, so a bright point blurs into the character. In an image
 with no transparency white is open. An image's longest side is the pupil diameter times
@@ -386,7 +409,7 @@ with Continue and Stop beside it.
   pattern gets the pair's exposure. Card pair takes the same four frames through
   hand-fitted cards with the panel white, pausing before each card, the baseline for what
   the panel costs. A and B start as Zhou A and Zhou B. Type another mask name from
-  `masks/` or pick a PNG or GIF with Browse A... and Browse B.... Image size in Controls
+  `assets/masks/` or pick a PNG or GIF with Browse A... and Browse B.... Image size in Controls
   sizes an image. The labels read `depth1000mm_pair`, so Gate 2 finds the distance. A pair
   other than the Zhou one adds its names, as in `depth1000mm_pair_star_heart`, so it never
   overwrites the Zhou files. Gates 1 and 3 need a mask file for each pattern, so they only
@@ -493,15 +516,15 @@ B, where the 60D has no shutter speed, or when the shutter speed is shorter than
 code. Check on the first run that Invert takes the glass all the way to white and back,
 which you can watch during LCD only flutter shutter.
 
-[flutter_deblur.py](flutter_deblur.py) deblurs the coded frame. It stretches the code from
+[flutter_deblur.py](aperture/analysis/flutter_deblur.py) deblurs the coded frame. It stretches the code from
 the trace over a blur length along the rows and removes it row by row by regularised least
 squares. It then aligns the result to the averaged reference frames and scores it by MSE,
 PSNR and NCC. `--sweep` tries a range of blur lengths in both directions and keeps the
 lowest MSE. Run it from the code folder with the run's prefix:
 
 ```
-python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --blur 100
-python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --sweep 100:5200:100
+python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --blur 100
+python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --sweep 100:5200:100
 ```
 
 The results land in `out/flutter/<run>/`: `compare.png` holds the coded, deblurred and
@@ -521,12 +544,12 @@ enough. Drive the car left at about 100 px/s, which gives about 320 px of blur o
 and start it with the "95" near the right edge of the frame. The impulse, coded and box
 photos take about 18 s, so the car travels about 1,800 px and stays in view.
 
-[flutter_score.py](flutter_score.py) checks and scores a run. Run it from the code folder
+[flutter_score.py](aperture/analysis/flutter_score.py) checks and scores a run. Run it from the code folder
 with the run's Name:
 
 ```
-python flutter_score.py Run2_f22
-python flutter_score.py Run2_f22 --pictures-only     # redraw the pictures from the saved scores
+python -m aperture.analysis.flutter_score Run2_f22
+python -m aperture.analysis.flutter_score Run2_f22 --pictures-only     # redraw the pictures from the saved scores
 ```
 
 It checks the manifest and traces, reads each photo's raw level, clipping and EXIF, sweeps
@@ -535,7 +558,7 @@ scores every photo against the run's reference: MSE, NCC and detail, the correla
 8 to 32 px features that make up the strokes of the "95". Each photo is scored with the f/11
 settings, lam 0.05 and 40 Richardson-Lucy iterations, and again at its best setting. The
 scores and pictures land in `out/flutter/<run>/`. It uses `flutter_deblur.py` for loading,
-deblurring and the first alignment, and `flutter_95_template.npy`, the "95" cut from a
+deblurring and the first alignment, and `assets/flutter_95_template.npy`, the "95" cut from a
 reference, to centre the close-ups.
 
 The best matched photo of each kind at each aperture is kept in
@@ -605,15 +628,15 @@ Once the backlight is stripped the cell may pass light where the image is black.
 
 ## Gates
 
-[gates.py](gates.py) scores downloaded sessions against the pitch. Every frame is a
+[gates.py](aperture/analysis/gates.py) scores downloaded sessions against the pitch. Every frame is a
 defocused point source in the image centre, the Lab 3 PSF protocol, captured with the
 `pair` sequence.
 
 ```
-python gates.py gate1 captures/gate1/700mm_manifest.json --bare captures/bare/bare_00_open.CR2
-python gates.py gate2 captures/g2/700mm_manifest.json captures/g2/1000mm_manifest.json captures/g2/1300mm_manifest.json
-python gates.py gate3 captures/gate3/700mm_manifest.json
-python gates.py selftest
+python -m aperture.analysis.gates gate1 captures/gate1/700mm_manifest.json --bare captures/bare/bare_00_open.CR2
+python -m aperture.analysis.gates gate2 captures/g2/700mm_manifest.json captures/g2/1000mm_manifest.json captures/g2/1300mm_manifest.json
+python -m aperture.analysis.gates gate3 captures/gate3/700mm_manifest.json
+python -m aperture.analysis.gates selftest
 ```
 
 - **Gate 1** cuts the PSF out of each coded frame, fits the displayed pattern to it over
@@ -640,7 +663,7 @@ millisecond after its SPI write to the panel finished. The sketch writes each ru
 arrives, so the serial transfer and the SPI write overlap and the write sets the frame
 time. Measured on a CH340 Uno: 95 ms for the open disc, white, black and the scan tiles,
 105 ms for the Zhou pair, 130 ms for the Lab 3 masks, 0.8 s for random noise and 1.5 s
-for a one pixel checkerboard, the worst case. `python display.py` prints the serial cost
+for a one pixel checkerboard, the worst case. `python -m aperture.rig.display` prints the serial cost
 of every pattern: 8 ms for the open disc and under 15 ms for every named pattern at
 500 kbaud.
 

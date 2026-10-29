@@ -13,9 +13,9 @@ that time in s; the blur is then that window of the cycle stretched over --blur 
 window starting --phase ms after the play command. --phases sweeps the start as well.
 
 Run from the code folder:
-  .venv/bin/python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --blur 100
-  .venv/bin/python flutter_deblur.py captures/flutter/Run1actual_100ms_invert --sweep 50:5000:50
-  .venv/bin/python flutter_deblur.py --coded ~/Desktop/IMG_9314.CR2 \\
+  .venv/bin/python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --blur 100
+  .venv/bin/python -m aperture.analysis.flutter_deblur captures/flutter/Run1actual_100ms_invert --sweep 50:5000:50
+  .venv/bin/python -m aperture.analysis.flutter_deblur --coded ~/Desktop/IMG_9314.CR2 \\
       --reference captures/flutter/Run1actual_100ms_invert_01_reference.cr2 \\
       --trace captures/flutter/run4_100ms_invert_05_switch.json --exposure 0.5 \\
       --sweep 200:5200:200 --phases 500:4200:100 --bin 8
@@ -30,7 +30,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter, median_filter
 
-import rawframe
+from aperture.analysis import rawframe
 
 
 def load(path, binning):

@@ -15,8 +15,8 @@ PNG and GIF files come in through a file dialog. A GIF plays on the panel at a c
 speed, and in an image sequence each GIF frame gets its own photo. The server opens the
 files by path, so they have to be on the machine that runs it.
 
-  python camview_capture.py --outdir captures                       # server on this laptop
-  python camview_capture.py --host 192.168.1.100 --outdir captures  # server on another machine
+  python -m aperture.clients.camview_capture --outdir captures                       # server on this laptop
+  python -m aperture.clients.camview_capture --host 192.168.1.100 --outdir captures  # server on another machine
 
 Requires: opencv-python, requests, glfw, pyopengl, imgui-bundle, pillow, and zenity for the file dialog
   pip install -r requirements.txt
@@ -41,8 +41,8 @@ from imgui_bundle import imgui
 from imgui_bundle import portable_file_dialogs as pfd
 from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
 
-import config as cfg
-import flutter
+from aperture import config as cfg
+from aperture import flutter
 
 status_message = "Ready"
 status_color = (0.5, 0.7, 1.0, 1.0)
@@ -571,7 +571,7 @@ def main():
             in_thread(start_steps, repeat([card("open"), card(sa, cards.get(a)), card(sb, cards.get(b)), card("open")]),
                       f"{base}_cardpair{pair}", "depth")
         imgui.end_disabled()
-        imgui.text_wrapped(f"Pattern A and B: a mask name from masks/, or a PNG or GIF from Browse, sized by Image size "
+        imgui.text_wrapped(f"Pattern A and B: a mask name from assets/masks/, or a PNG or GIF from Browse, sized by Image size "
                            f"in Controls. A pair other than zhou_a and zhou_b adds its names to the file names. "
                            f"PSF set: open, {sa}, {sb}, levin and black, for a point source at the distance above. "
                            f"Pair: open, {sa}, {sb}, open, for a textured target. "

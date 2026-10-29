@@ -1,14 +1,14 @@
 """Show a pattern with no server, for checking patterns in a window or on the panel.
 
-  python show.py levin
-  python show.py open --diameter 20
-  python show.py star.png --backend arduino
+  python -m aperture.clients.show levin
+  python -m aperture.clients.show open --diameter 20
+  python -m aperture.clients.show star.png --backend arduino
 """
 import argparse
 import time
 
-import patterns
-from display import open_display
+from aperture import patterns
+from aperture.rig.display import open_display
 
 
 def main():

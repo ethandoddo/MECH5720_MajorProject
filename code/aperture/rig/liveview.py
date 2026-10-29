@@ -19,7 +19,7 @@ import time
 import numpy as np
 from PIL import Image
 
-import config as cfg
+from aperture import config as cfg
 
 SOI = b"\xff\xd8"
 EOI = b"\xff\xd9"

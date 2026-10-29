@@ -11,14 +11,14 @@ has the highest minimum, the criterion of the paper. The search is seeded, so ev
 designs the same code and the manifest can name it by its text. The sketch takes up to
 MAX_CHOPS chops and 16 bit millisecond times, so a run has to fit FLUTTER_MAX_S.
 
-  python flutter.py             prints the default code, its score and the box score
-  python flutter.py 1011001...  scores a code of your own
+  python -m aperture.flutter             prints the default code, its score and the box score
+  python -m aperture.flutter 1011001...  scores a code of your own
 """
 import sys
 
 import numpy as np
 
-import config as cfg
+from aperture import config as cfg
 
 MAX_CHOPS = 64          # the sketch's limit
 PAD = 8                 # the spectrum is sampled at PAD times the code length

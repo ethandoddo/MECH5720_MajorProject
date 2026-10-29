@@ -6,8 +6,8 @@ general, the blur sweep moving left only (the car always drives left; in dim lig
 time-reversed code can score a few percent better by chance) and every photo also scored at its
 best setting (lam 0.02 to 1, RL 5 to 80 iterations, impulse smoothed by sigma 1 to 4 binned px).
 Run from the code folder, with the run's Name from the Flutter tab:
-  .venv/bin/python flutter_score.py Run2_f22 [Run3_f22 ...] [--dir captures/flutter] [--out out/flutter]
-  .venv/bin/python flutter_score.py Run2_f22 --pictures-only     (redraw from the saved <run>.json)
+  .venv/bin/python -m aperture.analysis.flutter_score Run2_f22 [Run3_f22 ...] [--dir captures/flutter] [--out out/flutter]
+  .venv/bin/python -m aperture.analysis.flutter_score Run2_f22 --pictures-only     (redraw from the saved <run>.json)
 For each run: the manifest and traces are checked, each photo's raw level and EXIF are read,
 coded and box are swept over blur length (lam 0.05, 200 to 1200 px in 25 px steps, --sweep to
 change), RL 40 at the best length; the impulse is scored as is and smoothed (sigma 2 binned px).
@@ -21,7 +21,6 @@ Deblurred and close-up pictures are fitted to the reference (gain and offset, as
 and drawn with the reference's black and white points."""
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import cv2
@@ -31,15 +30,16 @@ from PIL import Image, ImageDraw, ImageFont
 from scipy.ndimage import gaussian_filter
 from scipy.signal import fftconvolve
 
-CODE_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(CODE_DIR))
-import flutter_deblur as fd  # noqa: E402
+from aperture import config as cfg
+from aperture.analysis import flutter_deblur as fd
+
+CODE_DIR = cfg.ROOT
 
 B = 4
 CODE = "10001101101001011000001111010101"
 # the "95" cut from Run19's reference (captures/flutter_5s_ISO100_f11_outside_lens/coded), binned 4 x 4, rows
 # 330 to 615 and columns 665 to 1010; found in each new reference by matching
-TEMPLATE = CODE_DIR / "flutter_95_template.npy"
+TEMPLATE = cfg.ASSETS / "flutter_95_template.npy"
 CROP = (660, 1000)  # close-up size in binned px, as in the f/11 95_compare.png
 
 
