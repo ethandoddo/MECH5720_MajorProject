@@ -1,0 +1,946 @@
+{
+ "run": "f22_lcd_inside_100ms_invert",
+ "manifest": {
+  "error": null,
+  "done": true,
+  "tags": [
+   "reference",
+   "impulse",
+   "coded",
+   "box",
+   "leakage",
+   "dark"
+  ],
+  "traces": {
+   "reference": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": true
+    },
+    "shutter_s": 5.0,
+    "code": "11111111111111111111111111111111",
+    "chop_ms": 100,
+    "lead_ms": 1000,
+    "tail_ms": 200,
+    "method": "invert",
+    "start_ms_max_err": 1.0,
+    "end_minus_start_max": 0.0
+   },
+   "impulse": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": false
+    }
+   },
+   "coded": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": true
+    },
+    "shutter_s": 5.0,
+    "code": "10001101101001011000001111010101",
+    "chop_ms": 100,
+    "lead_ms": 1000,
+    "tail_ms": 200,
+    "method": "invert",
+    "start_ms_max_err": 1.0,
+    "end_minus_start_max": 0.0
+   },
+   "box": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": true
+    },
+    "shutter_s": 5.0,
+    "code": "11111111111111111111111111111111",
+    "chop_ms": 100,
+    "lead_ms": 1000,
+    "tail_ms": 200,
+    "method": "invert",
+    "start_ms_max_err": 0.0,
+    "end_minus_start_max": 0.0
+   },
+   "leakage": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": true
+    },
+    "shutter_s": 5.0,
+    "code": "00000000000000000000000000000000",
+    "chop_ms": 100,
+    "lead_ms": 1000,
+    "tail_ms": 200,
+    "method": "invert",
+    "start_ms_max_err": 0.0,
+    "end_minus_start_max": 0.0
+   },
+   "dark": {
+    "files": {
+     ".cr2": true,
+     ".dng": true,
+     ".json": true
+    },
+    "shutter_s": 5.0,
+    "code": "00000000000000000000000000000000",
+    "chop_ms": 100,
+    "lead_ms": 1000,
+    "tail_ms": 200,
+    "method": "invert",
+    "start_ms_max_err": 1.0,
+    "end_minus_start_max": 0.0
+   }
+  }
+ },
+ "raw": {
+  "reference": {
+   "mean": 0.00605,
+   "std": 0.00449,
+   "p99.9": 0.0324,
+   "clipped": 1.6648419998348477e-07,
+   "raw_max": 13584,
+   "near_max": 1.6648419998348477e-07
+  },
+  "impulse": {
+   "mean": 0.00021,
+   "std": 0.00074,
+   "p99.9": 0.0032,
+   "clipped": 0.0,
+   "raw_max": 4143,
+   "near_max": 5.549473332782825e-08
+  },
+  "coded": {
+   "mean": 0.00259,
+   "std": 0.00206,
+   "p99.9": 0.0132,
+   "clipped": 2.21978933311313e-07,
+   "raw_max": 13584,
+   "near_max": 1.6648419998348477e-07
+  },
+  "box": {
+   "mean": 0.00476,
+   "std": 0.00352,
+   "p99.9": 0.0252,
+   "clipped": 2.21978933311313e-07,
+   "raw_max": 13585,
+   "near_max": 1.6648419998348477e-07
+  },
+  "leakage": {
+   "mean": 0.00032,
+   "std": 0.00109,
+   "p99.9": 0.0026,
+   "clipped": 2.21978933311313e-07,
+   "raw_max": 13584,
+   "near_max": 1.109894666556565e-07
+  },
+  "dark": {
+   "mean": 0.00037,
+   "std": 0.00107,
+   "p99.9": 0.0026,
+   "clipped": 2.21978933311313e-07,
+   "raw_max": 13585,
+   "near_max": 1.109894666556565e-07
+  }
+ },
+ "exif": {
+  "reference": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 5.0
+  },
+  "impulse": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 0.1
+  },
+  "coded": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 5.0
+  },
+  "box": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 5.0
+  },
+  "leakage": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 5.0
+  },
+  "dark": {
+   "f_number": 22.0,
+   "iso": 100,
+   "exposure_s": 5.0
+  }
+ },
+ "photos": {
+  "coded": {
+   "blur_px": 250,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 78.1,
+   "as_is": {
+    "mse": 0.02854,
+    "ncc": 0.674,
+    "detail": 0.11,
+    "dy": -14,
+    "dx": 172,
+    "scorer_dy": -17,
+    "scorer_dx": 160
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.03148,
+    "ncc": 0.631,
+    "detail": 0.17,
+    "dy": -13,
+    "dx": 197,
+    "scorer_dy": -16,
+    "scorer_dx": 185
+   },
+   "deblurred_RL40": {
+    "mse": 0.03495,
+    "ncc": 0.578,
+    "detail": 0.2,
+    "dy": -20,
+    "dx": 168,
+    "scorer_dy": -23,
+    "scorer_dx": 162
+   },
+   "tuned": {
+    "lam": {
+     "0.02": {
+      "mse": 0.03575,
+      "ncc": 0.562,
+      "detail": 0.165,
+      "dy": -14,
+      "dx": 197,
+      "scorer_dy": -17,
+      "scorer_dx": 185
+     },
+     "0.05": {
+      "mse": 0.03148,
+      "ncc": 0.631,
+      "detail": 0.17,
+      "dy": -13,
+      "dx": 197,
+      "scorer_dy": -16,
+      "scorer_dx": 185
+     },
+     "0.1": {
+      "mse": 0.03023,
+      "ncc": 0.651,
+      "detail": 0.154,
+      "dy": -20,
+      "dx": 205,
+      "scorer_dy": -23,
+      "scorer_dx": 193
+     },
+     "0.2": {
+      "mse": 0.02946,
+      "ncc": 0.663,
+      "detail": 0.172,
+      "dy": -21,
+      "dx": 205,
+      "scorer_dy": -24,
+      "scorer_dx": 193
+     },
+     "0.5": {
+      "mse": 0.02873,
+      "ncc": 0.673,
+      "detail": 0.187,
+      "dy": -21,
+      "dx": 205,
+      "scorer_dy": -24,
+      "scorer_dx": 193
+     },
+     "1.0": {
+      "mse": 0.01793,
+      "ncc": 0.81,
+      "detail": 0.216,
+      "dy": 3,
+      "dx": 263,
+      "scorer_dy": 5,
+      "scorer_dx": 251
+     }
+    },
+    "RL": {
+     "5": {
+      "mse": 0.02998,
+      "ncc": 0.655,
+      "detail": 0.189,
+      "dy": -21,
+      "dx": 174,
+      "scorer_dy": -24,
+      "scorer_dx": 162
+     },
+     "10": {
+      "mse": 0.0306,
+      "ncc": 0.646,
+      "detail": 0.189,
+      "dy": -20,
+      "dx": 172,
+      "scorer_dy": -23,
+      "scorer_dx": 162
+     },
+     "20": {
+      "mse": 0.03236,
+      "ncc": 0.619,
+      "detail": 0.213,
+      "dy": -20,
+      "dx": 168,
+      "scorer_dy": -23,
+      "scorer_dx": 162
+     },
+     "40": {
+      "mse": 0.03495,
+      "ncc": 0.578,
+      "detail": 0.2,
+      "dy": -20,
+      "dx": 168,
+      "scorer_dy": -23,
+      "scorer_dx": 162
+     },
+     "80": {
+      "mse": 0.0377,
+      "ncc": 0.53,
+      "detail": 0.202,
+      "dy": -19,
+      "dx": 166,
+      "scorer_dy": -22,
+      "scorer_dx": 163
+     }
+    },
+    "best_lam": 1.0,
+    "best_RL_iters": 5
+   },
+   "sweep": [
+    [
+     200,
+     "left",
+     0.03182
+    ],
+    [
+     225,
+     "left",
+     0.03205
+    ],
+    [
+     250,
+     "left",
+     0.03148
+    ],
+    [
+     275,
+     "left",
+     0.03257
+    ],
+    [
+     300,
+     "left",
+     0.0326
+    ],
+    [
+     325,
+     "left",
+     0.03224
+    ],
+    [
+     350,
+     "left",
+     0.03279
+    ],
+    [
+     375,
+     "left",
+     0.03238
+    ],
+    [
+     400,
+     "left",
+     0.03271
+    ],
+    [
+     425,
+     "left",
+     0.0331
+    ],
+    [
+     450,
+     "left",
+     0.03305
+    ],
+    [
+     475,
+     "left",
+     0.03345
+    ],
+    [
+     500,
+     "left",
+     0.03395
+    ],
+    [
+     525,
+     "left",
+     0.03415
+    ],
+    [
+     550,
+     "left",
+     0.03359
+    ],
+    [
+     575,
+     "left",
+     0.03342
+    ],
+    [
+     600,
+     "left",
+     0.03288
+    ],
+    [
+     625,
+     "left",
+     0.03274
+    ],
+    [
+     650,
+     "left",
+     0.03404
+    ],
+    [
+     675,
+     "left",
+     0.03422
+    ],
+    [
+     700,
+     "left",
+     0.03461
+    ],
+    [
+     725,
+     "left",
+     0.03951
+    ],
+    [
+     750,
+     "left",
+     0.03981
+    ],
+    [
+     775,
+     "left",
+     0.0398
+    ],
+    [
+     800,
+     "left",
+     0.03738
+    ],
+    [
+     825,
+     "left",
+     0.03909
+    ],
+    [
+     850,
+     "left",
+     0.03912
+    ],
+    [
+     875,
+     "left",
+     0.03915
+    ],
+    [
+     900,
+     "left",
+     0.03913
+    ],
+    [
+     925,
+     "left",
+     0.03805
+    ],
+    [
+     950,
+     "left",
+     0.03978
+    ],
+    [
+     975,
+     "left",
+     0.03992
+    ],
+    [
+     1000,
+     "left",
+     0.04006
+    ],
+    [
+     1025,
+     "left",
+     0.04198
+    ],
+    [
+     1050,
+     "left",
+     0.04207
+    ],
+    [
+     1075,
+     "left",
+     0.0422
+    ],
+    [
+     1100,
+     "left",
+     0.03725
+    ],
+    [
+     1125,
+     "left",
+     0.03728
+    ],
+    [
+     1150,
+     "left",
+     0.03781
+    ],
+    [
+     1175,
+     "left",
+     0.03796
+    ],
+    [
+     1200,
+     "left",
+     0.03795
+    ]
+   ]
+  },
+  "box": {
+   "blur_px": 200,
+   "direction": "left",
+   "code_s": 3.2,
+   "car_speed_px_s": 62.5,
+   "as_is": {
+    "mse": 0.0358,
+    "ncc": 0.559,
+    "detail": 0.149,
+    "dy": -21,
+    "dx": 297,
+    "scorer_dy": -24,
+    "scorer_dx": 285
+   },
+   "deblurred_lam0.05": {
+    "mse": 0.03743,
+    "ncc": 0.539,
+    "detail": 0.064,
+    "dy": -21,
+    "dx": 311,
+    "scorer_dy": -22,
+    "scorer_dx": 322
+   },
+   "deblurred_RL40": {
+    "mse": 0.03575,
+    "ncc": 0.562,
+    "detail": 0.193,
+    "dy": -20,
+    "dx": 305,
+    "scorer_dy": -23,
+    "scorer_dx": 298
+   },
+   "tuned": {
+    "lam": {
+     "0.02": {
+      "mse": 0.03806,
+      "ncc": 0.528,
+      "detail": 0.014,
+      "dy": -21,
+      "dx": 311,
+      "scorer_dy": -22,
+      "scorer_dx": 322
+     },
+     "0.05": {
+      "mse": 0.03743,
+      "ncc": 0.539,
+      "detail": 0.064,
+      "dy": -21,
+      "dx": 311,
+      "scorer_dy": -22,
+      "scorer_dx": 322
+     },
+     "0.1": {
+      "mse": 0.03721,
+      "ncc": 0.543,
+      "detail": 0.105,
+      "dy": -21,
+      "dx": 311,
+      "scorer_dy": -22,
+      "scorer_dx": 322
+     },
+     "0.2": {
+      "mse": 0.03709,
+      "ncc": 0.543,
+      "detail": 0.153,
+      "dy": -22,
+      "dx": 309,
+      "scorer_dy": -22,
+      "scorer_dx": 321
+     },
+     "0.5": {
+      "mse": 0.03701,
+      "ncc": 0.544,
+      "detail": 0.157,
+      "dy": -21,
+      "dx": 309,
+      "scorer_dy": -22,
+      "scorer_dx": 321
+     },
+     "1.0": {
+      "mse": 0.03698,
+      "ncc": 0.544,
+      "detail": 0.163,
+      "dy": -21,
+      "dx": 309,
+      "scorer_dy": -23,
+      "scorer_dx": 318
+     }
+    },
+    "RL": {
+     "5": {
+      "mse": 0.03512,
+      "ncc": 0.574,
+      "detail": 0.216,
+      "dy": -19,
+      "dx": 307,
+      "scorer_dy": -22,
+      "scorer_dx": 297
+     },
+     "10": {
+      "mse": 0.03522,
+      "ncc": 0.572,
+      "detail": 0.221,
+      "dy": -20,
+      "dx": 307,
+      "scorer_dy": -23,
+      "scorer_dx": 297
+     },
+     "20": {
+      "mse": 0.03536,
+      "ncc": 0.569,
+      "detail": 0.214,
+      "dy": -20,
+      "dx": 305,
+      "scorer_dy": -23,
+      "scorer_dx": 298
+     },
+     "40": {
+      "mse": 0.03575,
+      "ncc": 0.562,
+      "detail": 0.193,
+      "dy": -20,
+      "dx": 305,
+      "scorer_dy": -23,
+      "scorer_dx": 298
+     },
+     "80": {
+      "mse": 0.03661,
+      "ncc": 0.548,
+      "detail": 0.145,
+      "dy": -19,
+      "dx": 307,
+      "scorer_dy": -22,
+      "scorer_dx": 306
+     }
+    },
+    "best_lam": 1.0,
+    "best_RL_iters": 5
+   },
+   "sweep": [
+    [
+     200,
+     "left",
+     0.03743
+    ],
+    [
+     225,
+     "left",
+     0.03872
+    ],
+    [
+     250,
+     "left",
+     0.04087
+    ],
+    [
+     275,
+     "left",
+     0.04003
+    ],
+    [
+     300,
+     "left",
+     0.03958
+    ],
+    [
+     325,
+     "left",
+     0.04086
+    ],
+    [
+     350,
+     "left",
+     0.04121
+    ],
+    [
+     375,
+     "left",
+     0.04259
+    ],
+    [
+     400,
+     "left",
+     0.04191
+    ],
+    [
+     425,
+     "left",
+     0.04251
+    ],
+    [
+     450,
+     "left",
+     0.04399
+    ],
+    [
+     475,
+     "left",
+     0.0492
+    ],
+    [
+     500,
+     "left",
+     0.05059
+    ],
+    [
+     525,
+     "left",
+     0.05161
+    ],
+    [
+     550,
+     "left",
+     0.05121
+    ],
+    [
+     575,
+     "left",
+     0.05136
+    ],
+    [
+     600,
+     "left",
+     0.05152
+    ],
+    [
+     625,
+     "left",
+     0.04625
+    ],
+    [
+     650,
+     "left",
+     0.04653
+    ],
+    [
+     675,
+     "left",
+     0.04679
+    ],
+    [
+     700,
+     "left",
+     0.04628
+    ],
+    [
+     725,
+     "left",
+     0.0474
+    ],
+    [
+     750,
+     "left",
+     0.04684
+    ],
+    [
+     775,
+     "left",
+     0.04704
+    ],
+    [
+     800,
+     "left",
+     0.04721
+    ],
+    [
+     825,
+     "left",
+     0.04746
+    ],
+    [
+     850,
+     "left",
+     0.04758
+    ],
+    [
+     875,
+     "left",
+     0.0477
+    ],
+    [
+     900,
+     "left",
+     0.04782
+    ],
+    [
+     925,
+     "left",
+     0.04804
+    ],
+    [
+     950,
+     "left",
+     0.04897
+    ],
+    [
+     975,
+     "left",
+     0.04825
+    ],
+    [
+     1000,
+     "left",
+     0.04836
+    ],
+    [
+     1025,
+     "left",
+     0.04938
+    ],
+    [
+     1050,
+     "left",
+     0.04947
+    ],
+    [
+     1075,
+     "left",
+     0.04873
+    ],
+    [
+     1100,
+     "left",
+     0.0488
+    ],
+    [
+     1125,
+     "left",
+     0.04893
+    ],
+    [
+     1150,
+     "left",
+     0.04897
+    ],
+    [
+     1175,
+     "left",
+     0.049
+    ],
+    [
+     1200,
+     "left",
+     0.04902
+    ]
+   ]
+  },
+  "impulse": {
+   "car_speed_px_s": 78.1,
+   "speed_from": "this run's coded photo",
+   "blur_px": 7.8,
+   "as_is": {
+    "mse": 0.04512,
+    "ncc": 0.104,
+    "detail": 0.039,
+    "dy": -43,
+    "dx": -259,
+    "scorer_dy": -40,
+    "scorer_dx": -247
+   },
+   "smoothed_2px_binned": {
+    "mse": 0.04487,
+    "ncc": 0.128,
+    "detail": 0.048,
+    "dy": -43,
+    "dx": -259,
+    "scorer_dy": -40,
+    "scorer_dx": -248
+   },
+   "tuned": {
+    "smoothed": {
+     "1": {
+      "mse": 0.04491,
+      "ncc": 0.124,
+      "detail": 0.042,
+      "dy": -43,
+      "dx": -259,
+      "scorer_dy": -40,
+      "scorer_dx": -247
+     },
+     "2": {
+      "mse": 0.04487,
+      "ncc": 0.128,
+      "detail": 0.048,
+      "dy": -43,
+      "dx": -259,
+      "scorer_dy": -40,
+      "scorer_dx": -248
+     },
+     "3": {
+      "mse": 0.04485,
+      "ncc": 0.129,
+      "detail": 0.054,
+      "dy": -43,
+      "dx": -259,
+      "scorer_dy": -40,
+      "scorer_dx": -248
+     },
+     "4": {
+      "mse": 0.04485,
+      "ncc": 0.13,
+      "detail": 0.06,
+      "dy": -43,
+      "dx": -259,
+      "scorer_dy": -40,
+      "scorer_dx": -248
+     }
+    },
+    "best_sigma_binned": 3
+   }
+  }
+ },
+ "95_centre_binned_px": {
+  "y": 482,
+  "x": 652,
+  "match": 0.908
+ }
+}
